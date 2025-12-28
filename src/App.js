@@ -18,6 +18,7 @@ import Unauthorized from './components/Unauthorized';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'react-toastify/dist/ReactToastify.css';
+import 'leaflet/dist/leaflet.css';
 import './App.css';
 import './styles/SmartFoodTheme.css';
 

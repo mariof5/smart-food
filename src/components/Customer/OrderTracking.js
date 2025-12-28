@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { orderService } from '../../services/databaseService';
 import { toast } from 'react-toastify';
+import OrderTrackingMap from './OrderTrackingMap';
 
 const OrderTracking = ({ orderId, onClose }) => {
   const { currentUser } = useAuth();
@@ -118,19 +119,32 @@ const OrderTracking = ({ orderId, onClose }) => {
       {/* Header */}
       <div className="row mb-4">
         <div className="col-12">
-          <div className="card">
-            <div className="card-body text-center">
-              <div className="mb-3">
-                <i className={`fas fa-${getStatusIcon(order.status)} fa-3x text-${getStatusColor(order.status)}`}></i>
+          <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: '20px' }}>
+            <div className="card-body p-0">
+              <div className="row g-0">
+                <div className="col-lg-8">
+                  <OrderTrackingMap order={order} />
+                </div>
+                <div className="col-lg-4 p-4 d-flex flex-column justify-content-center text-center">
+                  <div className="mb-3">
+                    <i className={`fas fa-${getStatusIcon(order.status)} fa-3x text-${getStatusColor(order.status)}`}></i>
+                  </div>
+                  <h2 className="mb-2">Order {order.orderNumber}</h2>
+                  <span className={`badge bg-${getStatusColor(order.status)} fs-5 px-3 py-2 rounded-pill shadow-sm mb-3`}>
+                    <i className={`fas fa-${getStatusIcon(order.status)} me-2`}></i>
+                    {order.status.toUpperCase()}
+                  </span>
+                  <p className="text-muted mt-2 mb-0">
+                    Estimated delivery: <strong className="text-dark">{getEstimatedDeliveryTime()}</strong>
+                  </p>
+                  {order.status === 'cancelled' && order.cancellationReason && (
+                    <div className="alert alert-danger mt-3 mb-0 border-start border-4 border-danger py-2">
+                      <small className="fw-bold d-block">Order Cancelled</small>
+                      <small>{order.cancellationReason}</small>
+                    </div>
+                  )}
+                </div>
               </div>
-              <h2 className="mb-2">Order {order.orderNumber}</h2>
-              <span className={`badge bg-${getStatusColor(order.status)} fs-5 px-3 py-2`}>
-                <i className={`fas fa-${getStatusIcon(order.status)} me-2`}></i>
-                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-              </span>
-              <p className="text-muted mt-2 mb-0">
-                Estimated delivery: <strong>{getEstimatedDeliveryTime()}</strong>
-              </p>
             </div>
           </div>
         </div>
@@ -250,7 +264,7 @@ const OrderTracking = ({ orderId, onClose }) => {
                           <h6 className="mb-0">{item.name}</h6>
                           <small className="text-muted">Quantity: {item.quantity}</small>
                         </div>
-                        <span className="fw-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="fw-bold">{(item.price * item.quantity).toFixed(2)} ETB</span>
                       </li>
                     ))}
                   </ul>
@@ -261,15 +275,15 @@ const OrderTracking = ({ orderId, onClose }) => {
               <hr />
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <span>Subtotal:</span>
-                <strong>${order.subtotal?.toFixed(2)}</strong>
+                <strong>{order.subtotal?.toFixed(2)} ETB</strong>
               </div>
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <span>Delivery Fee:</span>
-                <strong>${order.deliveryFee?.toFixed(2)}</strong>
+                <strong>{order.deliveryFee?.toFixed(2)} ETB</strong>
               </div>
               <div className="d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">Total:</h5>
-                <h5 className="mb-0 text-primary">${order.total?.toFixed(2)}</h5>
+                <h5 className="mb-0 text-primary">{order.total?.toFixed(2)} ETB</h5>
               </div>
             </div>
           </div>

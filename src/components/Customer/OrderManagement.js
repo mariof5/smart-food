@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { orderService, refundService, disputeService } from '../../services/databaseService';
 
-const OrderManagement = () => {
+const OrderManagement = ({ onTrackOrder }) => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState([]);
   const [refunds, setRefunds] = useState([]);
@@ -282,9 +282,9 @@ const OrderManagement = () => {
                           {formatTimestamp(order.createdAt)}
                         </small>
                       </div>
-                      <span className={`badge bg-${getStatusColor(order.status)} fs-6`}>
+                      <span className={`badge bg-${getStatusColor(order.status)} fs-6 shadow-sm rounded-pill px-3`}>
                         <i className={`fas fa-${getStatusIcon(order.status)} me-1`}></i>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        {order.status.toUpperCase()}
                       </span>
                     </div>
                   </div>
@@ -373,18 +373,26 @@ const OrderManagement = () => {
 
                       <button
                         className="btn btn-outline-primary btn-sm"
-                        onClick={() => {
-                          // Navigate to order tracking
-                          console.log('Track order:', order.id);
-                        }}
+                        onClick={() => onTrackOrder(order.id)}
                       >
                         <i className="fas fa-map-marker-alt me-1"></i>
                         Track Order
                       </button>
                     </div>
 
+                    {/* Cancellation Reason */}
+                    {order.status === 'cancelled' && order.cancellationReason && (
+                      <div className="mt-3 p-3 bg-danger bg-opacity-10 border-start border-4 border-danger rounded">
+                        <h6 className="text-danger mb-1">
+                          <i className="fas fa-exclamation-circle me-2"></i>
+                          Cancellation Reason
+                        </h6>
+                        <p className="mb-0 text-dark">{order.cancellationReason}</p>
+                      </div>
+                    )}
+
                     {/* Cancellation/Modification Deadlines */}
-                    {(order.canCancel || order.canModify) && (
+                    {order.status !== 'cancelled' && (order.canCancel || order.canModify) && (
                       <div className="mt-3 p-2 bg-info bg-opacity-10 rounded">
                         <small className="text-info">
                           <i className="fas fa-info-circle me-1"></i>

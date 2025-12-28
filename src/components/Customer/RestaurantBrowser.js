@@ -20,9 +20,7 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
     { id: 'fast-food', name: 'Fast Food', icon: 'hamburger' },
     { id: 'ethiopian', name: 'Ethiopian', icon: 'bread-slice' },
     { id: 'italian', name: 'Italian', icon: 'pizza-slice' },
-    { id: 'coffee', name: 'Coffee & Drinks', icon: 'mug-hot' },
-    { id: 'desserts', name: 'Desserts', icon: 'ice-cream' },
-    { id: 'healthy', name: 'Healthy', icon: 'leaf' }
+    { id: 'coffee', name: 'Coffee & Drinks', icon: 'mug-hot' }
   ];
 
   useEffect(() => {
@@ -37,13 +35,13 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
   const loadRestaurants = async () => {
     try {
       const restaurantsData = await restaurantService.getAll();
-      
+
       // Calculate distance and delivery time for each restaurant
       const restaurantsWithDistance = await Promise.all(
         restaurantsData.map(async (restaurant) => {
           let distance = null;
           let deliveryTime = restaurant.deliveryTime || '30-45 min';
-          
+
           if (userLocation && restaurant.latitude && restaurant.longitude) {
             distance = gpsService.calculateDistance(
               userLocation.latitude,
@@ -51,20 +49,24 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
               restaurant.latitude,
               restaurant.longitude
             );
-            
+
             const estimatedTime = gpsService.calculateDeliveryTime(distance);
             deliveryTime = `${estimatedTime}-${estimatedTime + 10} min`;
           }
-          
+
+          // Store is open ONLY if manual toggle is true (or not set) AND opening hours match
+          const manualStatus = restaurant.isOpen !== false;
+          const timeStatus = isRestaurantOpen(restaurant.openingHours);
+
           return {
             ...restaurant,
             distance,
             deliveryTime,
-            isOpen: isRestaurantOpen(restaurant.openingHours)
+            isOpen: manualStatus && timeStatus
           };
         })
       );
-      
+
       setRestaurants(restaurantsWithDistance);
     } catch (error) {
       console.error('Error loading restaurants:', error);
@@ -85,17 +87,17 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
 
   const isRestaurantOpen = (openingHours) => {
     if (!openingHours) return true; // Assume open if no hours specified
-    
+
     const now = new Date();
     const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const currentTime = now.getHours() * 100 + now.getMinutes(); // HHMM format
-    
+
     const todayHours = openingHours[currentDay];
     if (!todayHours || todayHours.closed) return false;
-    
+
     const openTime = parseInt(todayHours.open.replace(':', ''));
     const closeTime = parseInt(todayHours.close.replace(':', ''));
-    
+
     return currentTime >= openTime && currentTime <= closeTime;
   };
 
@@ -147,7 +149,7 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
     try {
       // Load restaurant menu
       const menuItems = await menuService.getByRestaurant(restaurant.id);
-      
+
       onSelectRestaurant({
         ...restaurant,
         menuItems
@@ -169,90 +171,45 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
   }
 
   return (
-    <div className="container-fluid">
-      {/* Search and Filters */}
-      <div className="row mb-4">
+    <div className="container-fluid px-0">
+      {/* Search Bar */}
+      <div className="row mb-5">
         <div className="col-12">
-          <div className="card">
-            <div className="card-body">
-              {/* Search Bar */}
-              <div className="row mb-3">
-                <div className="col-md-8">
-                  <div className="input-group">
-                    <span className="input-group-text">
-                      <i className="fas fa-search"></i>
-                    </span>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Search restaurants, cuisines, or dishes..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <button 
-                    className="btn btn-outline-primary w-100"
-                    onClick={() => setShowFilters(!showFilters)}
-                  >
-                    <i className="fas fa-filter me-2"></i>
-                    Filters & Sort
-                  </button>
+          <div className="card border-0 shadow-sm p-4" style={{ borderRadius: '25px', background: 'rgba(255, 255, 255, 0.9)' }}>
+            <div className="row g-3 align-items-center justify-content-center">
+              <div className="col-lg-8">
+                <div className="input-group">
+                  <span className="input-group-text bg-transparent border-end-0 ps-4">
+                    <i className="fas fa-search text-primary"></i>
+                  </span>
+                  <input
+                    type="text"
+                    className="form-control form-control-lg border-start-0 ps-0"
+                    placeholder="What would you like to eat today?"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ borderRadius: '0 30px 30px 0', fontSize: '1.1rem' }}
+                  />
                 </div>
               </div>
-
-              {/* Filters */}
-              {showFilters && (
-                <div className="row">
-                  <div className="col-md-6">
-                    <label className="form-label">Sort By</label>
-                    <select 
-                      className="form-select"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                    >
-                      <option value="rating">Highest Rated</option>
-                      <option value="distance">Nearest</option>
-                      <option value="delivery-time">Fastest Delivery</option>
-                      <option value="popularity">Most Popular</option>
-                      <option value="newest">Newest</option>
-                    </select>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Category</label>
-                    <select 
-                      className="form-select"
-                      value={selectedCategory}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                    >
-                      {categories.map(category => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Category Pills */}
-      <div className="row mb-4">
+      <div className="row mb-5">
         <div className="col-12">
-          <div className="d-flex flex-wrap gap-2">
+          <div className="d-flex flex-nowrap overflow-auto pb-3 gap-3 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
             {categories.map(category => (
-              <button
+              <div
                 key={category.id}
-                className={`btn ${selectedCategory === category.id ? 'btn-primary' : 'btn-outline-primary'} btn-sm`}
+                className={`category-badge ${selectedCategory === category.id ? 'active' : ''} text-nowrap`}
                 onClick={() => setSelectedCategory(category.id)}
               >
-                <i className={`fas fa-${category.icon} me-1`}></i>
+                <i className={`fas fa-${category.icon} me-2`}></i>
                 {category.name}
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -285,20 +242,20 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
         ) : (
           filteredRestaurants.map((restaurant) => (
             <div key={restaurant.id} className="col-lg-4 col-md-6 mb-4">
-              <div 
+              <div
                 className={`card restaurant-card h-100 ${!restaurant.isOpen ? 'restaurant-closed' : ''}`}
                 onClick={() => restaurant.isOpen && handleRestaurantSelect(restaurant)}
                 style={{ cursor: restaurant.isOpen ? 'pointer' : 'not-allowed' }}
               >
                 {/* Restaurant Image */}
                 <div className="position-relative">
-                  <img 
-                    src={restaurant.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600'} 
-                    className="card-img-top restaurant-image" 
+                  <img
+                    src={restaurant.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600'}
+                    className="card-img-top restaurant-image"
                     alt={restaurant.name}
                     style={{ height: '200px', objectFit: 'cover' }}
                   />
-                  
+
                   {/* Status Badge */}
                   <div className="position-absolute top-0 end-0 m-2">
                     <span className={`badge ${restaurant.isOpen ? 'bg-success' : 'bg-danger'}`}>
@@ -330,10 +287,10 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
                   </div>
 
                   <p className="text-muted small mb-2">{restaurant.cuisine}</p>
-                  
+
                   {restaurant.description && (
                     <p className="card-text small text-muted mb-3">
-                      {restaurant.description.length > 100 
+                      {restaurant.description.length > 100
                         ? restaurant.description.substring(0, 100) + '...'
                         : restaurant.description
                       }

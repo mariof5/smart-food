@@ -25,6 +25,14 @@ const Dashboard = () => {
         name: '', description: '', price: '', category: '', image: ''
     });
     const [menuImage, setMenuImage] = useState(null);
+    const [showOtherCategory, setShowOtherCategory] = useState(false);
+
+    const MENU_CATEGORIES = ['Fast Food', 'Ethiopian', 'Italian', 'Drinks', 'Other'];
+
+    // Cancellation State
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [cancelReason, setCancelReason] = useState('');
 
     useEffect(() => {
         if (currentUser?.uid) {
@@ -135,6 +143,12 @@ const Dashboard = () => {
     const handleEditMenuItem = (item) => {
         setEditingItem(item);
         setMenuForm(item);
+        // Check if the current category is one of the defaults
+        if (!MENU_CATEGORIES.includes(item.category) && item.category !== '') {
+            setShowOtherCategory(true);
+        } else {
+            setShowOtherCategory(false);
+        }
         window.scrollTo(0, 0); // Scroll to form
     };
 
@@ -153,12 +167,60 @@ const Dashboard = () => {
         setEditingItem(null);
         setMenuForm({ name: '', description: '', price: '', category: '', image: '' });
         setMenuImage(null);
+        setShowOtherCategory(false);
+    };
+
+    const handleCategoryChange = (e) => {
+        const value = e.target.value;
+        if (value === 'Other') {
+            setShowOtherCategory(true);
+            setMenuForm({ ...menuForm, category: '' });
+        } else {
+            setShowOtherCategory(false);
+            setMenuForm({ ...menuForm, category: value });
+        }
     };
 
     const handleUpdateOrderStatus = async (orderId, newStatus) => {
         const result = await orderService.updateStatus(orderId, newStatus, currentUser.uid);
         if (result.success) toast.success(`Order status updated to ${newStatus}!`);
         else toast.error('Failed to update order');
+    };
+
+    const handleToggleStatus = async () => {
+        const newStatus = !restaurant.isOpen;
+        const result = await restaurantService.update(currentUser.uid, {
+            isOpen: newStatus
+        });
+
+        if (result.success) {
+            toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
+            loadRestaurantData();
+        } else {
+            toast.error('Failed to update status');
+        }
+    };
+
+    const handleCancelOrder = async () => {
+        if (!selectedOrder || !cancelReason) {
+            toast.error('Please select a reason');
+            return;
+        }
+
+        const result = await orderService.cancelOrder(
+            selectedOrder.id,
+            cancelReason,
+            currentUser.uid
+        );
+
+        if (result.success) {
+            toast.success('Order cancelled successfully');
+            setShowCancelModal(false);
+            setCancelReason('');
+            setSelectedOrder(null);
+        } else {
+            toast.error(result.error || 'Failed to cancel order');
+        }
     };
 
     const handleLogout = async () => {
@@ -176,147 +238,204 @@ const Dashboard = () => {
     }
 
     return (
-        <div className="min-vh-100 bg-light">
+        <div className="min-vh-100 bg-light dashboard-layout">
             {/* Navigation */}
-            <nav className="navbar navbar-expand-lg navbar-dark bg-success">
+            <nav className="navbar navbar-smartfood navbar-expand-lg navbar-light sticky-top">
                 <div className="container-fluid">
-                    <span className="navbar-brand">
-                        <i className="fas fa-store me-2"></i>
-                        {restaurant?.name || 'Restaurant Dashboard'}
-                    </span>
+                    <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none" to="/">
+                        SmartFood <small className="fs-6 text-muted ms-2">Restaurant</small>
+                    </Link>
 
-                    <div className="ms-auto">
-                        <span className="text-white me-3">
-                            <i className="fas fa-user me-2"></i>
-                            {userData?.name}
-                        </span>
-                        <button className="btn btn-outline-light" onClick={handleLogout}>
-                            <i className="fas fa-sign-out-alt me-2"></i>
-                            Logout
-                        </button>
+                    <button
+                        className="navbar-toggler"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#navbarRestaurant"
+                    >
+                        <span className="navbar-toggler-icon"></span>
+                    </button>
+
+                    <div className="collapse navbar-collapse" id="navbarRestaurant">
+                        <div className="ms-auto d-flex align-items-center">
+                            <div className="me-4 d-none d-lg-block">
+                                <button
+                                    className={`btn ${restaurant?.isOpen ? 'btn-success' : 'btn-danger'} shadow-sm p-2 px-3 rounded-pill transition-all`}
+                                    onClick={handleToggleStatus}
+                                >
+                                    <i className={`fas fa-circle ms-1 me-2 small ${restaurant?.isOpen ? 'blink' : ''}`}></i>
+                                    {restaurant?.isOpen ? 'Online & Accepting Orders' : 'Offline - Closed'}
+                                </button>
+                            </div>
+                            <div className="dropdown me-3">
+                                <a
+                                    className="nav-link dropdown-toggle d-flex align-items-center"
+                                    href="#"
+                                    role="button"
+                                    data-bs-toggle="dropdown"
+                                >
+                                    <div className="user-avatar me-2">
+                                        <i className="fas fa-store-alt fa-lg text-primary"></i>
+                                    </div>
+                                    <span className="fw-semibold text-dark">{restaurant?.name || 'Restaurant'}</span>
+                                </a>
+                                <ul className="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                    <li className="px-3 py-2">
+                                        <div className="small text-muted text-uppercase mb-1">Owner</div>
+                                        <div className="fw-bold text-dark">{userData?.name}</div>
+                                    </li>
+                                    <li><hr className="dropdown-divider" /></li>
+                                    <li>
+                                        <button className="dropdown-item py-2" onClick={handleLogout}>
+                                            <i className="fas fa-sign-out-alt me-2 text-danger"></i>
+                                            Logout
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </nav>
 
-            <div className="container-fluid">
-                <div className="row">
+            <div className="container-fluid py-4">
+                <div className="row g-4">
                     {/* Sidebar */}
-                    <div className="col-md-3 col-lg-2 bg-white border-end min-vh-100 p-0">
-                        <div className="list-group list-group-flush">
-                            <button
-                                className={`list-group-item list-group-item-action ${activeView === 'overview' ? 'active' : ''}`}
-                                onClick={() => setActiveView('overview')}
-                            >
-                                <i className="fas fa-chart-line me-2"></i>
-                                Overview
-                            </button>
-                            <button
-                                className={`list-group-item list-group-item-action ${activeView === 'orders' ? 'active' : ''}`}
-                                onClick={() => setActiveView('orders')}
-                            >
-                                <i className="fas fa-shopping-bag me-2"></i>
-                                Orders
-                                {orders.filter(o => o.status === 'placed').length > 0 && (
-                                    <span className="badge bg-danger ms-2">
-                                        {orders.filter(o => o.status === 'placed').length}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                className={`list-group-item list-group-item-action ${activeView === 'menu' ? 'active' : ''}`}
-                                onClick={() => setActiveView('menu')}
-                            >
-                                <i className="fas fa-utensils me-2"></i>
-                                Menu Management
-                            </button>
+                    <div className="col-md-3 col-lg-2">
+                        <div className="card border-0 shadow-sm sticky-top" style={{ top: '100px', borderRadius: '20px' }}>
+                            <div className="card-body p-2">
+                                <div className="nav flex-column nav-pills custom-pills">
+                                    <button
+                                        className={`nav-link text-start mb-2 py-3 px-4 rounded-pill transition-all ${activeView === 'overview' ? 'active shadow-sm' : 'text-dark'}`}
+                                        onClick={() => setActiveView('overview')}
+                                    >
+                                        <i className="fas fa-chart-line me-3"></i>
+                                        Overview
+                                    </button>
+                                    <button
+                                        className={`nav-link text-start mb-2 py-3 px-4 rounded-pill transition-all ${activeView === 'orders' ? 'active shadow-sm' : 'text-dark'}`}
+                                        onClick={() => setActiveView('orders')}
+                                    >
+                                        <i className="fas fa-shopping-bag me-3"></i>
+                                        Orders
+                                        {orders.filter(o => o.status === 'placed').length > 0 && (
+                                            <span className="badge bg-danger ms-auto rounded-pill shadow-sm">
+                                                {orders.filter(o => o.status === 'placed').length}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`nav-link text-start py-3 px-4 rounded-pill transition-all ${activeView === 'menu' ? 'active shadow-sm' : 'text-dark'}`}
+                                        onClick={() => setActiveView('menu')}
+                                    >
+                                        <i className="fas fa-utensils me-3"></i>
+                                        Menu
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Main Content */}
-                    <div className="col-md-9 col-lg-10 p-4">
+                    <div className="col-md-9 col-lg-10 p-0 px-md-3">
                         {/* Overview */}
                         {activeView === 'overview' && (
-                            <div>
-                                <div className="d-flex justify-content-between align-items-center mb-4">
-                                    <h2 className="mb-0">Dashboard Overview</h2>
+                            <div className="fade-in">
+                                <div className="welcome-banner mb-4 p-4 rounded-4 bg-white shadow-sm border-start border-4 border-success d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h2 className="section-title mb-1">Store Dashboard</h2>
+                                        <p className="text-muted mb-0">Manage your restaurant performance and orders</p>
+                                    </div>
                                     <button
-                                        className="btn btn-primary"
+                                        className="btn btn-outline-success rounded-pill px-4"
                                         onClick={() => setIsEditingProfile(!isEditingProfile)}
                                     >
-                                        <i className="fas fa-edit me-2"></i>
-                                        {isEditingProfile ? 'Cancel Edit' : 'Edit Profile'}
+                                        <i className="fas fa-cog me-2"></i>
+                                        {isEditingProfile ? 'Close Settings' : 'Store Settings'}
                                     </button>
                                 </div>
 
                                 {isEditingProfile && (
-                                    <div className="card mb-4">
-                                        <div className="card-header">
-                                            <h5 className="mb-0">Edit Restaurant Profile</h5>
+                                    <div className="card mb-4 border-0 shadow-sm rounded-4 overflow-hidden">
+                                        <div className="card-header bg-success text-white p-3">
+                                            <h5 className="mb-0">Restaurant Profile</h5>
                                         </div>
-                                        <div className="card-body">
+                                        <div className="card-body p-4 text-dark">
                                             <form onSubmit={handleProfileUpdate}>
                                                 <div className="row g-3">
                                                     <div className="col-md-6">
-                                                        <label className="form-label">Restaurant Name</label>
+                                                        <label className="form-label fw-semibold">Restaurant Name</label>
                                                         <input
                                                             type="text"
-                                                            className="form-control"
+                                                            className="form-control rounded-3"
                                                             value={profileForm.name || ''}
                                                             onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                                                             required
                                                         />
                                                     </div>
                                                     <div className="col-md-6">
-                                                        <label className="form-label">Cuisine Type</label>
+                                                        <label className="form-label fw-semibold">Cuisine Type</label>
                                                         <input
                                                             type="text"
-                                                            className="form-control"
+                                                            className="form-control rounded-3"
                                                             value={profileForm.cuisine || ''}
                                                             onChange={(e) => setProfileForm({ ...profileForm, cuisine: e.target.value })}
                                                             required
                                                         />
                                                     </div>
                                                     <div className="col-12">
-                                                        <label className="form-label">Description</label>
+                                                        <label className="form-label fw-semibold">Description</label>
                                                         <textarea
-                                                            className="form-control"
+                                                            className="form-control rounded-3"
                                                             rows="2"
                                                             value={profileForm.description || ''}
                                                             onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
                                                             required
                                                         />
                                                     </div>
+                                                    <div className="col-12">
+                                                        <label className="form-label fw-semibold">Store Address</label>
+                                                        <textarea
+                                                            className="form-control rounded-3"
+                                                            rows="2"
+                                                            placeholder="e.g. Kality, Addis Ababa, Near Customs"
+                                                            value={profileForm.address || ''}
+                                                            onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                                                            required
+                                                        />
+                                                    </div>
                                                     <div className="col-md-4">
-                                                        <label className="form-label">Delivery Time Estimate</label>
+                                                        <label className="form-label fw-semibold">Delivery Time</label>
                                                         <input
                                                             type="text"
-                                                            className="form-control"
+                                                            className="form-control rounded-3"
                                                             placeholder="e.g. 30-45 min"
                                                             value={profileForm.deliveryTime || ''}
                                                             onChange={(e) => setProfileForm({ ...profileForm, deliveryTime: e.target.value })}
                                                         />
                                                     </div>
                                                     <div className="col-md-4">
-                                                        <label className="form-label">Delivery Fee (ETB)</label>
+                                                        <label className="form-label fw-semibold">Delivery Fee (ETB)</label>
                                                         <input
                                                             type="number"
-                                                            className="form-control"
+                                                            className="form-control rounded-3"
                                                             value={profileForm.deliveryFee || ''}
                                                             onChange={(e) => setProfileForm({ ...profileForm, deliveryFee: Number(e.target.value) })}
                                                         />
                                                     </div>
                                                     <div className="col-md-4">
-                                                        <label className="form-label">Profile Image</label>
+                                                        <label className="form-label fw-semibold">Image</label>
                                                         <input
                                                             type="file"
-                                                            className="form-control"
+                                                            className="form-control rounded-3"
                                                             accept="image/*"
                                                             onChange={(e) => setProfileImage(e.target.files[0])}
                                                         />
                                                     </div>
-                                                    <div className="col-12">
-                                                        <button type="submit" className="btn btn-success" disabled={uploading}>
-                                                            {uploading ? 'Saving...' : 'Save Changes'}
+                                                    <div className="col-12 pt-2">
+                                                        <button type="submit" className="btn btn-success px-5 rounded-pill shadow-sm" disabled={uploading}>
+                                                            {uploading ? (
+                                                                <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>
+                                                            ) : 'Save Store Changes'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -325,44 +444,54 @@ const Dashboard = () => {
                                     </div>
                                 )}
 
-                                <div className="row g-3 mb-4">
+                                <div className="row g-4 mb-4">
                                     <div className="col-md-3">
-                                        <div className="card h-100">
-                                            <div className="card-body text-center">
-                                                {restaurant?.image ? (
-                                                    <img src={restaurant.image} alt="Restaurant" className="img-thumbnail mb-2" style={{ height: '80px', objectFit: 'cover' }} />
-                                                ) : (
-                                                    <i className="fas fa-store fa-4x text-muted mb-2"></i>
-                                                )}
-                                                <h5 className="mb-0">{restaurant?.name}</h5>
-                                                <small className="text-muted">{restaurant?.cuisine}</small>
+                                        <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                                            <div className="card-body text-center p-4">
+                                                <div className="avatar-lg mx-auto mb-3">
+                                                    {restaurant?.image ? (
+                                                        <img src={restaurant.image} alt="Store" className="img-fluid rounded-circle shadow-sm" style={{ width: '80px', height: '80px', objectFit: 'cover' }} />
+                                                    ) : (
+                                                        <div className="bg-light rounded-circle d-flex align-items-center justify-content-center mx-auto" style={{ width: '80px', height: '80px' }}>
+                                                            <i className="fas fa-store fa-2x text-muted"></i>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <h5 className="mb-0 fw-bold">{restaurant?.name}</h5>
+                                                <span className="badge bg-light text-primary mt-2">{restaurant?.cuisine}</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="col-md-3">
-                                        <div className="card h-100 border-primary">
-                                            <div className="card-body text-center">
-                                                <i className="fas fa-shopping-bag fa-2x text-primary mb-2"></i>
-                                                <h3 className="mb-0">{stats?.totalOrders || 0}</h3>
-                                                <small className="text-muted">Total Orders</small>
+                                        <div className="card h-100 border-0 shadow-sm rounded-4 border-bottom border-4 border-primary">
+                                            <div className="card-body text-center p-4">
+                                                <div className="feature-icon mb-2" style={{ width: '50px', height: '50px', fontSize: '1.5rem' }}>
+                                                    <i className="fas fa-shopping-bag"></i>
+                                                </div>
+                                                <h3 className="mb-0 fw-bold">{stats?.totalOrders || 0}</h3>
+                                                <small className="text-muted text-uppercase fw-semibold">Orders</small>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="col-md-3">
-                                        <div className="card h-100 border-success">
-                                            <div className="card-body text-center">
-                                                <i className="fas fa-dollar-sign fa-2x text-success mb-2"></i>
-                                                <h3 className="mb-0">${stats?.totalRevenue?.toFixed(2) || '0.00'}</h3>
-                                                <small className="text-muted">Total Revenue</small>
+                                        <div className="card h-100 border-0 shadow-sm rounded-4 border-bottom border-4 border-success">
+                                            <div className="card-body text-center p-4">
+                                                <div className="feature-icon bg-success bg-opacity-10 text-success mb-2" style={{ width: '50px', height: '50px', fontSize: '1.5rem' }}>
+                                                    <i className="fas fa-money-bill-wave"></i>
+                                                </div>
+                                                <h3 className="mb-0 fw-bold">{stats?.totalRevenue?.toFixed(0) || '0'} <small className="fs-6">ETB</small></h3>
+                                                <small className="text-muted text-uppercase fw-semibold">Revenue</small>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="col-md-3">
-                                        <div className="card h-100 border-info">
-                                            <div className="card-body text-center">
-                                                <i className="fas fa-utensils fa-2x text-info mb-2"></i>
-                                                <h3 className="mb-0">{menuItems.length}</h3>
-                                                <small className="text-muted">Menu Items</small>
+                                        <div className="card h-100 border-0 shadow-sm rounded-4 border-bottom border-4 border-info">
+                                            <div className="card-body text-center p-4">
+                                                <div className="feature-icon bg-info bg-opacity-10 text-info mb-2" style={{ width: '50px', height: '50px', fontSize: '1.5rem' }}>
+                                                    <i className="fas fa-utensils"></i>
+                                                </div>
+                                                <h3 className="mb-0 fw-bold">{menuItems.length}</h3>
+                                                <small className="text-muted text-uppercase fw-semibold">Items</small>
                                             </div>
                                         </div>
                                     </div>
@@ -394,27 +523,41 @@ const Dashboard = () => {
                                                                 <ul>
                                                                     {order.items?.map((item, idx) => (
                                                                         <li key={idx}>
-                                                                            {item.name} x {item.quantity} - ${(item.price * item.quantity).toFixed(2)}
+                                                                            {item.name} x {item.quantity} - {(item.price * item.quantity).toFixed(2)} ETB
                                                                         </li>
                                                                     ))}
                                                                 </ul>
-                                                                <p className="mb-0"><strong>Total:</strong> ${order.total?.toFixed(2)}</p>
+                                                                <p className="mb-0"><strong>Total:</strong> {order.total?.toFixed(2)} ETB</p>
                                                             </div>
-                                                            <div>
-                                                                <span className={`badge bg-${order.status === 'delivered' ? 'success' : order.status === 'cancelled' ? 'danger' : 'warning'} mb-2`}>
-                                                                    {order.status}
+                                                            <div className="text-end">
+                                                                <span className={`badge bg-${order.status === 'delivered' ? 'success' : order.status === 'cancelled' ? 'danger' : 'warning'} mb-2 d-block`}>
+                                                                    {order.status.toUpperCase()}
                                                                 </span>
                                                                 {order.status === 'placed' && (
-                                                                    <div className="btn-group-vertical">
-                                                                        <button className="btn btn-sm btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'preparing')}>
-                                                                            Accept & Prepare
+                                                                    <div className="d-flex flex-column gap-2 mt-2">
+                                                                        <button className="btn btn-sm btn-success rounded-pill px-3" onClick={() => handleUpdateOrderStatus(order.id, 'preparing')}>
+                                                                            <i className="fas fa-check me-1"></i> Accept
+                                                                        </button>
+                                                                        <button
+                                                                            className="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                                                            onClick={() => {
+                                                                                setSelectedOrder(order);
+                                                                                setShowCancelModal(true);
+                                                                            }}
+                                                                        >
+                                                                            <i className="fas fa-times me-1"></i> Cancel
                                                                         </button>
                                                                     </div>
                                                                 )}
-                                                                {order.status === 'preparing' && (
-                                                                    <button className="btn btn-sm btn-primary" onClick={() => handleUpdateOrderStatus(order.id, 'ready')}>
-                                                                        Mark Ready
+                                                                {['preparing', 'confirmed'].includes(order.status) && (
+                                                                    <button className="btn btn-sm btn-primary rounded-pill px-3 mt-2" onClick={() => handleUpdateOrderStatus(order.id, 'ready')}>
+                                                                        <i className="fas fa-box me-1"></i> Ready for Pickup
                                                                     </button>
+                                                                )}
+                                                                {order.status === 'cancelled' && order.cancellationReason && (
+                                                                    <div className="small text-danger mt-2">
+                                                                        <strong>Reason:</strong> {order.cancellationReason}
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -456,7 +599,7 @@ const Dashboard = () => {
                                                     />
                                                 </div>
                                                 <div className="col-md-3">
-                                                    <label className="form-label">Price ($)</label>
+                                                    <label className="form-label">Price (ETB)</label>
                                                     <input
                                                         type="number"
                                                         step="0.01"
@@ -468,15 +611,32 @@ const Dashboard = () => {
                                                 </div>
                                                 <div className="col-md-3">
                                                     <label className="form-label">Category</label>
-                                                    <input
-                                                        type="text"
-                                                        className="form-control"
-                                                        value={menuForm.category}
-                                                        onChange={(e) => setMenuForm({ ...menuForm, category: e.target.value })}
+                                                    <select
+                                                        className="form-select"
+                                                        value={showOtherCategory ? 'Other' : (MENU_CATEGORIES.includes(menuForm.category) ? menuForm.category : 'Other')}
+                                                        onChange={handleCategoryChange}
                                                         required
-                                                    />
+                                                    >
+                                                        <option value="">Select Category...</option>
+                                                        {MENU_CATEGORIES.map(cat => (
+                                                            <option key={cat} value={cat}>{cat}</option>
+                                                        ))}
+                                                    </select>
                                                 </div>
-                                                <div className="col-12">
+                                                {showOtherCategory && (
+                                                    <div className="col-md-3">
+                                                        <label className="form-label">Specify Category</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            value={menuForm.category}
+                                                            onChange={(e) => setMenuForm({ ...menuForm, category: e.target.value })}
+                                                            placeholder="Enter category name"
+                                                            required
+                                                        />
+                                                    </div>
+                                                )}
+                                                <div className={showOtherCategory ? "col-12" : "col-12"}>
                                                     <label className="form-label">Description</label>
                                                     <textarea
                                                         className="form-control"
@@ -548,8 +708,8 @@ const Dashboard = () => {
                                                                     <div className="fw-bold">{item.name}</div>
                                                                     <small className="text-muted">{item.description}</small>
                                                                 </td>
-                                                                <td><span className="badge bg-secondary">{item.category}</span></td>
-                                                                <td>${item.price?.toFixed(2)}</td>
+                                                                <td>{item.category && <span className="badge bg-secondary">{item.category}</span>}</td>
+                                                                <td>{item.price?.toFixed(2)} ETB</td>
                                                                 <td>
                                                                     <button
                                                                         className="btn btn-sm btn-outline-primary me-2"
@@ -577,6 +737,48 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Cancellation Modal */}
+            {showCancelModal && (
+                <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+                            <div className="modal-header border-0 pb-0">
+                                <h5 className="modal-title fw-bold">Cancel Order {selectedOrder?.orderNumber}</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowCancelModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <p className="text-muted">Please select a reason for cancelling this order. This will be shown to the customer.</p>
+                                <div className="mb-3">
+                                    <label className="form-label fw-semibold">Cancellation Reason</label>
+                                    <select
+                                        className="form-select rounded-3"
+                                        value={cancelReason}
+                                        onChange={(e) => setCancelReason(e.target.value)}
+                                    >
+                                        <option value="">Select a reason...</option>
+                                        <option value="Item(s) Out of Stock">Item(s) Out of Stock</option>
+                                        <option value="Store Too Busy / Overcapacity">Store Too Busy / Overcapacity</option>
+                                        <option value="Delivery Issue / Driver Unavailable">Delivery Issue / Driver Unavailable</option>
+                                        <option value="Inaccurate Price/Description">Inaccurate Price/Description</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="modal-footer border-0 pt-0">
+                                <button type="button" className="btn btn-light rounded-pill px-4" onClick={() => setShowCancelModal(false)}>Close</button>
+                                <button
+                                    type="button"
+                                    className="btn btn-danger rounded-pill px-4"
+                                    onClick={handleCancelOrder}
+                                    disabled={!cancelReason}
+                                >
+                                    Confirm Cancellation
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

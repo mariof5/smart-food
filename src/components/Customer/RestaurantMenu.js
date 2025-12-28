@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { menuService, orderService } from '../../services/databaseService';
+import { locationService } from '../../services/locationService';
+import { gpsService } from '../../services/gpsService';
 import { toast } from 'react-toastify';
 
 const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) => {
@@ -14,6 +16,34 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
 
     const [paymentMethod, setPaymentMethod] = useState('telebirr');
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+    const [addressSuggestions, setAddressSuggestions] = useState([]);
+    const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+
+    const handleAddressChange = (e) => {
+        const value = e.target.value;
+        setDeliveryAddress(value);
+        setAddressSuggestions(locationService.getSuggestions(value));
+    };
+
+    const selectSuggestion = (suggestion) => {
+        setDeliveryAddress(suggestion);
+        setAddressSuggestions([]);
+    };
+
+    const detectLocation = async () => {
+        setIsDetectingLocation(true);
+        try {
+            const position = await gpsService.getCurrentLocation();
+            const address = await locationService.getAddressFromCoords(position.latitude, position.longitude);
+            setDeliveryAddress(address);
+            toast.success('Location detected!');
+        } catch (error) {
+            console.error('Error detecting location:', error);
+            toast.error('Could not detect location. Please enter manually.');
+        } finally {
+            setIsDetectingLocation(false);
+        }
+    };
 
     useEffect(() => {
         loadMenu();
@@ -117,7 +147,7 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
                 setCart([]);
                 toast.success(`Order placed successfully!`);
                 if (onOrderPlaced) {
-                    onOrderPlaced(); // Navigate to Orders Dashboard
+                    onOrderPlaced(result.id); // Navigate to live tracking for this order
                 }
             } else {
                 toast.error(result.error || 'Failed to place order');
@@ -344,15 +374,45 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
                                         </div>
 
                                         {/* Delivery Details */}
-                                        <div className="mb-3">
-                                            <label className="form-label small">Delivery Address</label>
+                                        <div className="mb-3 position-relative">
+                                            <div className="d-flex justify-content-between align-items-center mb-1">
+                                                <label className="form-label small mb-0">Delivery Address</label>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-link btn-sm p-0 text-decoration-none"
+                                                    onClick={detectLocation}
+                                                    disabled={isDetectingLocation}
+                                                >
+                                                    {isDetectingLocation ? (
+                                                        <span className="spinner-border spinner-border-sm me-1"></span>
+                                                    ) : (
+                                                        <i className="fas fa-location-arrow me-1"></i>
+                                                    )}
+                                                    Track my location
+                                                </button>
+                                            </div>
                                             <textarea
                                                 className="form-control form-control-sm"
                                                 rows="2"
                                                 value={deliveryAddress}
-                                                onChange={(e) => setDeliveryAddress(e.target.value)}
-                                                placeholder="Enter your full address"
+                                                onChange={handleAddressChange}
+                                                placeholder="Enter your full address (e.g. Kality, Bole...)"
                                             />
+                                            {addressSuggestions.length > 0 && (
+                                                <div className="position-absolute w-100 shadow-lg bg-white border rounded mt-1 overflow-hidden" style={{ zIndex: 1000 }}>
+                                                    {addressSuggestions.map((suggestion, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className="p-2 small hover-bg-light cursor-pointer border-bottom last-border-0"
+                                                            onClick={() => selectSuggestion(suggestion)}
+                                                            style={{ cursor: 'pointer' }}
+                                                        >
+                                                            <i className="fas fa-map-marker-alt text-primary me-2"></i>
+                                                            {suggestion}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="mb-3">
