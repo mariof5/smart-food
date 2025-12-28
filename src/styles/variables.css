@@ -1,0 +1,11 @@
+:root {
+    --primary: #ff6b35;
+    --secondary: #2ecc71;
+    --dark: #23272f;
+    --light: #f8f9fa;
+    --accent: #3498db;
+    --gradient: linear-gradient(90deg, #ff6b35 0%, #ffb347 100%);
+    --ethiopia-green: #078930;
+    --ethiopia-yellow: #fcdd09;
+    --ethiopia-red: #da121a;
+}
