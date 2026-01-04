@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { menuService, orderService } from '../../services/databaseService';
+import { paymentService } from '../../services/paymentService';
 import { locationService } from '../../services/locationService';
 import { gpsService } from '../../services/gpsService';
 import { toast } from 'react-toastify';
@@ -14,7 +15,7 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
     const [phoneNumber, setPhoneNumber] = useState(userData?.phone || '');
     const [specialInstructions, setSpecialInstructions] = useState('');
 
-    const [paymentMethod, setPaymentMethod] = useState('telebirr');
+    const [paymentMethod, setPaymentMethod] = useState('chapa');
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [addressSuggestions, setAddressSuggestions] = useState([]);
     const [isDetectingLocation, setIsDetectingLocation] = useState(false);
@@ -137,10 +138,53 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
                 phoneNumber,
                 specialInstructions,
                 paymentMethod,
-                paymentStatus: paymentMethod === 'telebirr' ? 'pending_verification' : 'pending_payment',
+                paymentMethod,
+                paymentStatus: 'pending',
                 createdAt: new Date().toISOString()
             };
 
+            if (paymentMethod === 'chapa') {
+                // Initialize Chapa Payment
+                const tx_ref = `SF-${Date.now()}`;
+                const paymentData = {
+                    amount: total,
+                    email: currentUser.email || 'customer@example.com',
+                    first_name: currentUser.displayName?.split(' ')[0] || 'Guest',
+                    last_name: currentUser.displayName?.split(' ')[1] || 'User',
+                    phone_number: phoneNumber,
+                    tx_ref: tx_ref,
+                    return_url: `${window.location.origin}/payment/callback?tx_ref=${tx_ref}`
+                };
+
+                const response = await paymentService.initializePayment(paymentData);
+
+                if (response.status === 'success' && response.checkout_url) {
+                    // Save order first as pending (optional, depending on flow preference)
+                    // For this implementation, we'll save order *after* payment success in standard flows, 
+                    // or save as pending now so we have a record.
+                    // Let's safe as pending locally or in DB if needed. 
+                    // Actually, better to save as 'pending_payment' in DB so we can update it later.
+
+                    const savedOrder = await orderService.create({
+                        ...orderData,
+                        tx_ref: tx_ref
+                    });
+
+                    if (savedOrder.success) {
+                        // Redirect to Chapa
+                        window.location.href = response.checkout_url;
+                    } else {
+                        toast.error("Failed to create order record");
+                        setIsPlacingOrder(false);
+                    }
+                } else {
+                    toast.error("Failed to initialize payment");
+                    setIsPlacingOrder(false);
+                }
+                return; // Stop execution here, wait for redirect
+            }
+
+            // Cash Flow
             const result = await orderService.create(orderData);
 
             if (result.success) {
@@ -447,11 +491,11 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
                                                         type="radio"
                                                         name="paymentMethod"
                                                         id="paymentTelebirr"
-                                                        checked={paymentMethod === 'telebirr'}
-                                                        onChange={() => setPaymentMethod('telebirr')}
+                                                        checked={paymentMethod === 'chapa'}
+                                                        onChange={() => setPaymentMethod('chapa')}
                                                     />
                                                     <label className="form-check-label" htmlFor="paymentTelebirr">
-                                                        Telebirr
+                                                        Pay with Chapa
                                                     </label>
                                                 </div>
                                                 <div className="form-check">
@@ -469,9 +513,9 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
                                                 </div>
                                             </div>
 
-                                            {paymentMethod === 'telebirr' && (
+                                            {paymentMethod === 'chapa' && (
                                                 <div className="alert alert-light border p-2">
-                                                    <p className="mb-0 small"><strong>Instructions:</strong> Please transfer <strong>{total.toFixed(2)} ETB</strong> to <strong>0911223344</strong> (SmartFood).</p>
+                                                    <p className="mb-0 small">You will be redirected to Chapa to complete your payment securely.</p>
                                                 </div>
                                             )}
                                         </div>

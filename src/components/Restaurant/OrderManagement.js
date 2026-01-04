@@ -10,6 +10,9 @@ const OrderManagement = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [selectedCancelItem, setSelectedCancelItem] = useState('');
 
   useEffect(() => {
     if (!currentUser) return;
@@ -19,19 +22,19 @@ const OrderManagement = () => {
       setOrders(newOrders);
       applyFilter(newOrders, filter);
       setLoading(false);
-      
+
       // Show notification for new orders
-      const newOrder = newOrders.find(order => 
-        order.status === 'placed' && 
+      const newOrder = newOrders.find(order =>
+        order.status === 'placed' &&
         !orders.find(existingOrder => existingOrder.id === order.id)
       );
-      
+
       if (newOrder && orders.length > 0) {
         toast.success(`🔔 New order received: ${newOrder.orderNumber}`, {
           autoClose: 5000,
           onClick: () => setSelectedOrder(newOrder)
         });
-        
+
         // Play notification sound
         playNotificationSound();
       }
@@ -43,12 +46,12 @@ const OrderManagement = () => {
   const playNotificationSound = () => {
     // Create audio notification
     const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-    audio.play().catch(() => {}); // Ignore errors if audio fails
+    audio.play().catch(() => { }); // Ignore errors if audio fails
   };
 
   const applyFilter = (orderList, filterType) => {
     let filtered = orderList;
-    
+
     switch (filterType) {
       case 'pending':
         filtered = orderList.filter(order => order.status === 'placed');
@@ -65,7 +68,7 @@ const OrderManagement = () => {
       default:
         filtered = orderList;
     }
-    
+
     setFilteredOrders(filtered);
   };
 
@@ -84,7 +87,7 @@ const OrderManagement = () => {
           'picked': '🏍️ Order is out for delivery!',
           'delivered': '🎉 Order has been delivered!'
         };
-        
+
         toast.success(statusMessages[newStatus] || `Order status updated to ${newStatus}`);
       } else {
         toast.error(result.error || 'Failed to update order status');
@@ -125,7 +128,7 @@ const OrderManagement = () => {
     };
 
     const nextStatus = statusFlow[order.status];
-    
+
     if (!nextStatus) {
       return (
         <button className="btn btn-success btn-sm" disabled>
@@ -136,14 +139,55 @@ const OrderManagement = () => {
     }
 
     return (
-      <button 
-        className={`btn btn-${nextStatus.color} btn-sm`}
-        onClick={() => updateOrderStatus(order.id, nextStatus.next)}
-      >
-        <i className={`fas fa-${nextStatus.icon} me-1`}></i>
-        {nextStatus.label}
-      </button>
+      <div className="d-flex gap-1">
+        <button
+          className={`btn btn-${nextStatus.color} btn-sm`}
+          onClick={() => updateOrderStatus(order.id, nextStatus.next)}
+        >
+          <i className={`fas fa-${nextStatus.icon} me-1`}></i>
+          {nextStatus.label}
+        </button>
+        {order.status === 'placed' && (
+          <button
+            className="btn btn-outline-danger btn-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedOrder(order);
+              setShowCancelModal(true);
+            }}
+          >
+            <i className="fas fa-times me-1"></i>
+            Cancel
+          </button>
+        )}
+      </div>
     );
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelReason && !selectedCancelItem) {
+      toast.error('Please provide a reason for cancellation');
+      return;
+    }
+
+    const finalReason = selectedCancelItem
+      ? `${selectedCancelItem} out of stock`
+      : cancelReason;
+
+    try {
+      const result = await orderService.cancelOrder(selectedOrder.id, finalReason, 'restaurant');
+      if (result.success) {
+        toast.success(`Order ${selectedOrder.orderNumber} cancelled: ${finalReason}`);
+        setShowCancelModal(false);
+        setSelectedOrder(null);
+        setCancelReason('');
+        setSelectedCancelItem('');
+      } else {
+        toast.error(result.error || 'Failed to cancel order');
+      }
+    } catch (error) {
+      toast.error('An error occurred while cancelling order');
+    }
   };
 
   const formatTimestamp = (timestamp) => {
@@ -204,35 +248,35 @@ const OrderManagement = () => {
       <div className="row mb-4">
         <div className="col-12">
           <div className="btn-group" role="group">
-            <button 
+            <button
               className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
               onClick={() => handleFilterChange('all')}
             >
               <i className="fas fa-list me-1"></i>
               All ({orders.length})
             </button>
-            <button 
+            <button
               className={`btn ${filter === 'pending' ? 'btn-warning' : 'btn-outline-warning'}`}
               onClick={() => handleFilterChange('pending')}
             >
               <i className="fas fa-clock me-1"></i>
               New ({orders.filter(o => o.status === 'placed').length})
             </button>
-            <button 
+            <button
               className={`btn ${filter === 'preparing' ? 'btn-info' : 'btn-outline-info'}`}
               onClick={() => handleFilterChange('preparing')}
             >
               <i className="fas fa-fire me-1"></i>
               Preparing ({orders.filter(o => o.status === 'preparing').length})
             </button>
-            <button 
+            <button
               className={`btn ${filter === 'ready' ? 'btn-primary' : 'btn-outline-primary'}`}
               onClick={() => handleFilterChange('ready')}
             >
               <i className="fas fa-check me-1"></i>
               Ready ({orders.filter(o => o.status === 'ready').length})
             </button>
-            <button 
+            <button
               className={`btn ${filter === 'completed' ? 'btn-success' : 'btn-outline-success'}`}
               onClick={() => handleFilterChange('completed')}
             >
@@ -275,7 +319,7 @@ const OrderManagement = () => {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="card-body">
                   <div className="row mb-3">
                     <div className="col-md-6">
@@ -293,11 +337,20 @@ const OrderManagement = () => {
                       <p className="mb-1"><strong>Method:</strong> {order.paymentMethod}</p>
                       <p className="mb-1"><strong>Subtotal:</strong> {order.subtotal?.toFixed(2)} ETB</p>
                       <p className="mb-0">
-                        <strong>Total:</strong> 
+                        <strong>Total:</strong>
                         <span className="text-success fw-bold ms-1">{order.total?.toFixed(2)} ETB</span>
                       </p>
                     </div>
                   </div>
+
+                  {order.specialInstructions && (
+                    <div className="alert alert-info border-0 bg-opacity-10 py-2 mb-3">
+                      <h6 className="text-info mb-1 small">
+                        <i className="fas fa-comment-alt me-2"></i>Special Instructions
+                      </h6>
+                      <p className="mb-0 small">{order.specialInstructions}</p>
+                    </div>
+                  )}
 
                   <h6 className="text-primary mb-2">
                     <i className="fas fa-utensils me-2"></i>
@@ -307,9 +360,9 @@ const OrderManagement = () => {
                     {order.items?.map((item, index) => (
                       <div key={index} className="d-flex align-items-center mb-2 p-2 bg-light rounded">
                         {item.image && (
-                          <img 
-                            src={item.image} 
-                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px' }} 
+                          <img
+                            src={item.image}
+                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px' }}
                             alt={item.name}
                           />
                         )}
@@ -331,7 +384,7 @@ const OrderManagement = () => {
                     </div>
                     <div className="d-flex gap-2">
                       {getNextStatusButton(order)}
-                      <button 
+                      <button
                         className="btn btn-outline-secondary btn-sm"
                         onClick={() => setSelectedOrder(order)}
                       >
@@ -356,8 +409,8 @@ const OrderManagement = () => {
                   <i className="fas fa-receipt me-2"></i>
                   Order Details - {selectedOrder.orderNumber}
                 </h5>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-close"
                   onClick={() => setSelectedOrder(null)}
                 ></button>
@@ -369,10 +422,16 @@ const OrderManagement = () => {
                     <p><strong>Phone:</strong> {selectedOrder.phoneNumber}</p>
                     <p><strong>Address:</strong> {selectedOrder.deliveryAddress}</p>
                     <p><strong>Delivery Time:</strong> {formatTimestamp(selectedOrder.deliveryDateTime)}</p>
+                    {selectedOrder.specialInstructions && (
+                      <div className="mt-2 p-2 bg-light rounded border">
+                        <small className="text-muted d-block mb-1">Special Instructions:</small>
+                        <p className="mb-0 small">{selectedOrder.specialInstructions}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="col-md-6">
                     <h6>Order Information</h6>
-                    <p><strong>Status:</strong> 
+                    <p><strong>Status:</strong>
                       <span className={`badge bg-${getStatusColor(selectedOrder.status)} ms-2`}>
                         {selectedOrder.status}
                       </span>
@@ -381,7 +440,7 @@ const OrderManagement = () => {
                     <p><strong>Payment:</strong> {selectedOrder.paymentMethod}</p>
                   </div>
                 </div>
-                
+
                 <h6 className="mt-3">Items Ordered</h6>
                 <div className="table-responsive">
                   <table className="table table-sm">
@@ -413,12 +472,78 @@ const OrderManagement = () => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={() => setSelectedOrder(null)}
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Modal */}
+      {showCancelModal && (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content border-0">
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title">
+                  <i className="fas fa-exclamation-triangle me-2"></i>
+                  Cancel Order {selectedOrder.orderNumber}
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowCancelModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <p className="text-muted mb-4">Are you sure you want to cancel this order? Please select a reason below.</p>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Item Out of Stock</label>
+                  <select
+                    className="form-select"
+                    value={selectedCancelItem}
+                    onChange={(e) => {
+                      setSelectedCancelItem(e.target.value);
+                      if (e.target.value) setCancelReason(''); // Clear manual reason if item selected
+                    }}
+                  >
+                    <option value="">-- Select out of stock item --</option>
+                    {selectedOrder?.items?.map((item, idx) => (
+                      <option key={idx} value={item.name}>{item.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="text-center my-3">
+                  <span className="text-muted small">--- OR ---</span>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Other Reason</label>
+                  <textarea
+                    className="form-control"
+                    rows="3"
+                    placeholder="Enter manual reason for cancellation..."
+                    value={cancelReason}
+                    onChange={(e) => {
+                      setCancelReason(e.target.value);
+                      if (e.target.value) setSelectedCancelItem(''); // Clear item selection if manual reason typed
+                    }}
+                  ></textarea>
+                </div>
+              </div>
+              <div className="modal-footer bg-light">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowCancelModal(false)}>Keep Order</button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleCancelOrder}
+                  disabled={!cancelReason && !selectedCancelItem}
+                >
+                  Confirm Cancellation
                 </button>
               </div>
             </div>

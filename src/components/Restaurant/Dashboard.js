@@ -243,7 +243,7 @@ const Dashboard = () => {
             <nav className="navbar navbar-smartfood navbar-expand-lg navbar-light sticky-top">
                 <div className="container-fluid">
                     <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none" to="/">
-                        SmartFood <small className="fs-6 text-muted ms-2">Restaurant</small>
+                        Food Express <small className="fs-6 text-muted ms-2">Restaurant</small>
                     </Link>
 
                     <button

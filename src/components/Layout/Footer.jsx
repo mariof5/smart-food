@@ -7,8 +7,8 @@ const Footer = () => {
             <div className="container">
                 <div className="row">
                     <div className="col-md-4 mb-4">
-                        <h4 className="mb-4"><i className="fas fa-utensils me-2"></i> SmartFood</h4>
-                        <p>Smart Food Ordering & Scheduled Delivery Application for Ethiopia. Order food anytime, anywhere
+                        <h4 className="mb-4"><i className="fas fa-utensils me-2"></i> Food Express</h4>
+                        <p>Food Express Ordering & Scheduled Delivery Application for Ethiopia. Order food anytime, anywhere
                             with real-time tracking.</p>
                         <div className="d-flex">
                             <a href="#" className="text-white me-3"><i className="fab fa-facebook-f fa-lg"></i></a>

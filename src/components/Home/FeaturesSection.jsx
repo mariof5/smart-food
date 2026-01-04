@@ -4,7 +4,7 @@ const FeaturesSection = () => {
     const features = [
         { icon: 'fas fa-robot', title: 'Smart Recommendations', desc: 'Personalized food suggestions based on your preferences and order history' },
         { icon: 'fas fa-map-marked-alt', title: 'Real-time Tracking', desc: 'Track your order from preparation to delivery with GPS technology' },
-        { icon: 'fas fa-money-bill-wave', title: 'Ethiopian Payments', desc: 'Secure payment options including Telebirr and EthioPay' },
+        { icon: 'fas fa-money-bill-wave', title: 'Ethiopian Payments', desc: 'Secure payment options including Telebirr and Chapa' },
         { icon: 'fas fa-bolt', title: 'Fast Delivery', desc: 'Efficient delivery system with optimized routes for faster service' },
         { icon: 'fas fa-calendar-alt', title: 'Scheduled Delivery', desc: 'Order now for delivery at your preferred time' },
         { icon: 'fas fa-headset', title: '24/7 Support', desc: 'Dedicated customer support available anytime you need assistance' }

@@ -3,7 +3,8 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
@@ -163,4 +164,89 @@ export const registerDelivery = async (email, password, deliveryData) => {
     console.error('Delivery registration error:', error);
     return { success: false, error: error.message };
   }
+};
+// Password reset
+export const resetPassword = async (email) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true, message: 'Password reset email sent successfully' };
+  } catch (error) {
+    console.error('Password reset error:', error);
+    let errorMessage = 'Failed to send password reset email';
+    
+    switch (error.code) {
+      case 'auth/user-not-found':
+        errorMessage = 'No account found with this email address';
+        break;
+      case 'auth/invalid-email':
+        errorMessage = 'Invalid email address';
+        break;
+      case 'auth/too-many-requests':
+        errorMessage = 'Too many requests. Please try again later';
+        break;
+      default:
+        errorMessage = error.message;
+    }
+    
+    return { success: false, error: errorMessage };
+  }
+};
+
+// Password strength validation
+export const validatePasswordStrength = (password) => {
+  const minLength = 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  
+  const criteria = {
+    minLength: password.length >= minLength,
+    hasUpperCase,
+    hasLowerCase,
+    hasNumbers,
+    hasSpecialChar
+  };
+  
+  const score = Object.values(criteria).filter(Boolean).length;
+  
+  let strength = 'weak';
+  let color = '#dc3545'; // Red
+  
+  if (score >= 5) {
+    strength = 'strong';
+    color = '#198754'; // Green
+  } else if (score >= 3) {
+    strength = 'medium';
+    color = '#ffc107'; // Yellow
+  }
+  
+  return {
+    score,
+    strength,
+    color,
+    criteria,
+    isValid: score >= 4 // Require at least 4 out of 5 criteria
+  };
+};
+
+// Enhanced password validation for registration
+export const validatePassword = (password) => {
+  const validation = validatePasswordStrength(password);
+  
+  if (!validation.isValid) {
+    const missingCriteria = [];
+    if (!validation.criteria.minLength) missingCriteria.push('at least 8 characters');
+    if (!validation.criteria.hasUpperCase) missingCriteria.push('one uppercase letter');
+    if (!validation.criteria.hasLowerCase) missingCriteria.push('one lowercase letter');
+    if (!validation.criteria.hasNumbers) missingCriteria.push('one number');
+    if (!validation.criteria.hasSpecialChar) missingCriteria.push('one special character');
+    
+    return {
+      isValid: false,
+      error: `Password must contain ${missingCriteria.join(', ')}`
+    };
+  }
+  
+  return { isValid: true };
 };

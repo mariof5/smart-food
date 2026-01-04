@@ -8,7 +8,7 @@ export const notificationService = {
     try {
       // In production, this would call a Firebase Cloud Function
       // that integrates with SMS providers like Twilio, AWS SNS, etc.
-      
+
       const sendSMSFunction = httpsCallable(functions, 'sendSMS');
       const result = await sendSMSFunction({
         phoneNumber: phoneNumber,
@@ -19,10 +19,10 @@ export const notificationService = {
       return { success: true, messageId: result.data.messageId };
     } catch (error) {
       console.error('Error sending SMS:', error);
-      
+
       // Fallback: Log to console for development
       console.log(`SMS to ${phoneNumber}: ${message}`);
-      
+
       return { success: false, error: error.message };
     }
   },
@@ -41,10 +41,10 @@ export const notificationService = {
       return { success: true, messageId: result.data.messageId };
     } catch (error) {
       console.error('Error sending email:', error);
-      
+
       // Fallback: Log to console for development
       console.log(`Email to ${email}: ${subject}`);
-      
+
       return { success: false, error: error.message };
     }
   },
@@ -63,12 +63,12 @@ export const notificationService = {
       return { success: true, messageId: result.data.messageId };
     } catch (error) {
       console.error('Error sending push notification:', error);
-      
+
       // Fallback: Browser notification for development
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(title, { body: body });
       }
-      
+
       return { success: false, error: error.message };
     }
   },
@@ -173,7 +173,7 @@ export const notificationService = {
             html: `
               <h2>Order Delivered!</h2>
               <p>Your order ${order.orderNumber} has been successfully delivered!</p>
-              <p>We hope you enjoy your meal. Thank you for choosing SmartFood!</p>
+              <p>We hope you enjoy your meal. Thank you for choosing Food Express!</p>
               <p>Please rate your experience in the app.</p>
             `
           },
@@ -196,8 +196,8 @@ export const notificationService = {
         // Send Email
         if (order.customerEmail) {
           await notificationService.sendEmail(
-            order.customerEmail, 
-            notification.email.subject, 
+            order.customerEmail,
+            notification.email.subject,
             notification.email.html,
             'order_update'
           );
@@ -224,7 +224,7 @@ export const notificationService = {
     notifyRestaurant: async (order) => {
       try {
         const message = `New order received! Order ${order.orderNumber} - ${order.items.length} items - ${order.total} ETB`;
-        
+
         // SMS to restaurant
         if (order.restaurantPhone) {
           await notificationService.sendSMS(order.restaurantPhone, message, 'new_order');
@@ -251,7 +251,7 @@ export const notificationService = {
     notifyDelivery: async (order, deliveryPersonId) => {
       try {
         const message = `New delivery assignment: Order ${order.orderNumber} from ${order.restaurantName} to ${order.deliveryAddress}`;
-        
+
         // Push notification to delivery person
         await notificationService.sendPushNotification(
           deliveryPersonId,

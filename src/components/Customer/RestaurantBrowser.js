@@ -58,11 +58,16 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
           const manualStatus = restaurant.isOpen !== false;
           const timeStatus = isRestaurantOpen(restaurant.openingHours);
 
+          // Fetch menu item count
+          const menuItems = await menuService.getByRestaurant(restaurant.id);
+          const totalMenuItems = menuItems.length;
+
           return {
             ...restaurant,
             distance,
             deliveryTime,
-            isOpen: manualStatus && timeStatus
+            isOpen: manualStatus && timeStatus,
+            totalMenuItems // Dynamically set the count
           };
         })
       );
@@ -125,7 +130,9 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
+          const ratingA = a.rating || 4.5; // Treat 'New' (0) as 4.5 for sorting
+          const ratingB = b.rating || 4.5;
+          return ratingB - ratingA;
         case 'distance':
           if (!a.distance || !b.distance) return 0;
           return a.distance - b.distance;
@@ -280,9 +287,15 @@ const RestaurantBrowser = ({ onSelectRestaurant }) => {
                     <div className="text-end">
                       <div className="d-flex align-items-center">
                         <i className="fas fa-star text-warning me-1"></i>
-                        <span className="fw-bold">{restaurant.rating?.toFixed(1) || 'New'}</span>
+                        <span className="fw-bold">
+                          {restaurant.rating > 0 ? restaurant.rating.toFixed(1) : (
+                            <span className="badge bg-soft-primary text-primary px-2 py-1">New</span>
+                          )}
+                        </span>
                       </div>
-                      <small className="text-muted">({restaurant.totalReviews || 0} reviews)</small>
+                      <small className="text-muted">
+                        {restaurant.totalReviews > 0 ? `(${restaurant.totalReviews} reviews)` : 'Newly Added'}
+                      </small>
                     </div>
                   </div>
 

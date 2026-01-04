@@ -1,20 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { disputeService, refundService } from '../../services/databaseService';
+import { disputeService, refundService, adminService } from '../../services/databaseService';
 import { demoService } from '../../services/demoService';
 import { toast } from 'react-toastify';
+import AnalyticsDashboard from './AnalyticsDashboard';
+import ThemeToggle from '../UI/ThemeToggle';
 
 const Dashboard = () => {
     const { currentUser, userData, logout } = useAuth();
     const [disputes, setDisputes] = useState([]);
     const [refunds, setRefunds] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [orders, setOrders] = useState([]);
     const [activeView, setActiveView] = useState('overview');
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState('all');
     const [stats, setStats] = useState({
         totalUsers: 0,
         totalOrders: 0,
         pendingDisputes: 0,
-        pendingRefunds: 0
+        pendingRefunds: 0,
+        totalRevenue: 0,
+        activeRestaurants: 0,
+        popularItems: [],
+        usersByRole: { customers: 0, restaurants: 0, delivery: 0, admin: 0 }
     });
 
     useEffect(() => {
@@ -24,11 +34,22 @@ const Dashboard = () => {
     const loadAdminData = async () => {
         setLoading(true);
         try {
+            // Load all admin data
+            const [allUsers, allOrders, platformStats] = await Promise.all([
+                adminService.getAllUsers(),
+                adminService.getAllOrders(),
+                adminService.getPlatformAnalytics()
+            ]);
+
+            setUsers(allUsers.filter(user => !user.isDeleted));
+            setOrders(allOrders);
+            setStats(platformStats);
+
             // In a real app, you'd load all disputes and refunds
             setDisputes([]);
             setRefunds([]);
 
-            toast.info('Admin dashboard loaded');
+            toast.success('Admin dashboard loaded successfully');
         } catch (error) {
             console.error('Error loading admin data:', error);
             toast.error('Failed to load admin data');
@@ -45,8 +66,36 @@ const Dashboard = () => {
 
         if (result.success) {
             toast.success(result.message);
+            loadAdminData(); // Refresh data
         } else {
             toast.error('Failed to generate data: ' + result.error);
+        }
+    };
+
+    const handleToggleUserStatus = async (userId, currentStatus) => {
+        const newStatus = !currentStatus;
+        const result = await adminService.updateUserStatus(userId, newStatus);
+
+        if (result.success) {
+            toast.success(`User ${newStatus ? 'activated' : 'suspended'} successfully`);
+            loadAdminData();
+        } else {
+            toast.error(result.error || 'Failed to update user status');
+        }
+    };
+
+    const handleDeleteUser = async (userId, userName) => {
+        if (!window.confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        const result = await adminService.deleteUser(userId);
+
+        if (result.success) {
+            toast.success('User deleted successfully');
+            loadAdminData();
+        } else {
+            toast.error(result.error || 'Failed to delete user');
         }
     };
 
@@ -81,6 +130,7 @@ const Dashboard = () => {
 
         if (result.success) {
             toast.success(result.message);
+            loadAdminData(); // Refresh data
         } else {
             toast.error('Failed to seed: ' + result.error);
         }
@@ -88,6 +138,22 @@ const Dashboard = () => {
 
     const handleLogout = async () => {
         await logout();
+    };
+
+    // Filter users based on search and role
+    const filteredUsers = users.filter(user => {
+        const matchesSearch = user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+        return matchesSearch && matchesRole;
+    });
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-ET', {
+            style: 'currency',
+            currency: 'ETB',
+            minimumFractionDigits: 0
+        }).format(amount);
     };
 
     if (loading) {
@@ -111,8 +177,9 @@ const Dashboard = () => {
                         Admin Dashboard
                     </span>
 
-                    <div className="ms-auto">
-                        <span className="text-white me-3">
+                    <div className="ms-auto d-flex align-items-center gap-3">
+                        <ThemeToggle size="sm" />
+                        <span className="text-white">
                             <i className="fas fa-user me-2"></i>
                             {userData?.name}
                         </span>
@@ -135,6 +202,29 @@ const Dashboard = () => {
                             >
                                 <i className="fas fa-chart-line me-2"></i>
                                 Overview
+                            </button>
+                            <button
+                                className={`list-group-item list-group-item-action ${activeView === 'users' ? 'active' : ''}`}
+                                onClick={() => setActiveView('users')}
+                            >
+                                <i className="fas fa-users me-2"></i>
+                                Manage Users
+                                <span className="badge bg-primary ms-2">{stats.totalUsers}</span>
+                            </button>
+                            <button
+                                className={`list-group-item list-group-item-action ${activeView === 'analytics' ? 'active' : ''}`}
+                                onClick={() => setActiveView('analytics')}
+                            >
+                                <i className="fas fa-chart-bar me-2"></i>
+                                Analytics
+                            </button>
+                            <button
+                                className={`list-group-item list-group-item-action ${activeView === 'orders' ? 'active' : ''}`}
+                                onClick={() => setActiveView('orders')}
+                            >
+                                <i className="fas fa-shopping-bag me-2"></i>
+                                All Orders
+                                <span className="badge bg-success ms-2">{stats.totalOrders}</span>
                             </button>
                             <button
                                 className={`list-group-item list-group-item-action ${activeView === 'disputes' ? 'active' : ''}`}
@@ -206,11 +296,11 @@ const Dashboard = () => {
                                     </div>
 
                                     <div className="col-md-3">
-                                        <div className="card border-danger">
+                                        <div className="card border-info">
                                             <div className="card-body text-center">
-                                                <i className="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
-                                                <h3 className="mb-0">{stats.pendingDisputes}</h3>
-                                                <small className="text-muted">Pending Disputes</small>
+                                                <i className="fas fa-dollar-sign fa-2x text-info mb-2"></i>
+                                                <h3 className="mb-0">{formatCurrency(stats.totalRevenue)}</h3>
+                                                <small className="text-muted">Total Revenue</small>
                                             </div>
                                         </div>
                                     </div>
@@ -218,9 +308,74 @@ const Dashboard = () => {
                                     <div className="col-md-3">
                                         <div className="card border-warning">
                                             <div className="card-body text-center">
-                                                <i className="fas fa-undo fa-2x text-warning mb-2"></i>
-                                                <h3 className="mb-0">{stats.pendingRefunds}</h3>
-                                                <small className="text-muted">Pending Refunds</small>
+                                                <i className="fas fa-store fa-2x text-warning mb-2"></i>
+                                                <h3 className="mb-0">{stats.activeRestaurants}</h3>
+                                                <small className="text-muted">Active Restaurants</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* User Distribution */}
+                                <div className="row mb-4">
+                                    <div className="col-md-6">
+                                        <div className="card">
+                                            <div className="card-header">
+                                                <h5 className="mb-0">User Distribution</h5>
+                                            </div>
+                                            <div className="card-body">
+                                                <div className="row text-center">
+                                                    <div className="col-6 mb-3">
+                                                        <div className="text-primary">
+                                                            <i className="fas fa-user fa-2x mb-2"></i>
+                                                            <h4>{stats.usersByRole.customers}</h4>
+                                                            <small>Customers</small>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-6 mb-3">
+                                                        <div className="text-success">
+                                                            <i className="fas fa-utensils fa-2x mb-2"></i>
+                                                            <h4>{stats.usersByRole.restaurants}</h4>
+                                                            <small>Restaurants</small>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <div className="text-warning">
+                                                            <i className="fas fa-motorcycle fa-2x mb-2"></i>
+                                                            <h4>{stats.usersByRole.delivery}</h4>
+                                                            <small>Delivery</small>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <div className="text-danger">
+                                                            <i className="fas fa-user-shield fa-2x mb-2"></i>
+                                                            <h4>{stats.usersByRole.admin}</h4>
+                                                            <small>Admins</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-md-6">
+                                        <div className="card">
+                                            <div className="card-header">
+                                                <h5 className="mb-0">Popular Items</h5>
+                                            </div>
+                                            <div className="card-body">
+                                                {stats.popularItems.length > 0 ? (
+                                                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                        {stats.popularItems.slice(0, 5).map((item, index) => (
+                                                            <div key={index} className="d-flex justify-content-between align-items-center mb-2">
+                                                                <span className="fw-bold">{item.item}</span>
+                                                                <span className="badge bg-primary">{item.count}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-muted">No order data available</p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -228,7 +383,192 @@ const Dashboard = () => {
 
                                 <div className="alert alert-info">
                                     <i className="fas fa-info-circle me-2"></i>
-                                    Welcome to the Admin Dashboard. Monitor system activity, manage disputes, and process refunds.
+                                    Welcome to the Admin Dashboard. Monitor system activity, manage users, and track platform performance.
+                                </div>
+                            </div>
+                        )}
+
+                        {/* User Management */}
+                        {activeView === 'users' && (
+                            <div>
+                                <div className="d-flex justify-content-between align-items-center mb-4">
+                                    <h2>Manage Users</h2>
+                                    <div className="d-flex gap-2">
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="Search users..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            style={{ width: '200px' }}
+                                        />
+                                        <select
+                                            className="form-select"
+                                            value={roleFilter}
+                                            onChange={(e) => setRoleFilter(e.target.value)}
+                                            style={{ width: '150px' }}
+                                        >
+                                            <option value="all">All Roles</option>
+                                            <option value="customer">Customers</option>
+                                            <option value="restaurant">Restaurants</option>
+                                            <option value="delivery">Delivery</option>
+                                            <option value="admin">Admins</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="card">
+                                    <div className="card-body">
+                                        <div className="table-responsive">
+                                            <table className="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Email</th>
+                                                        <th>Role</th>
+                                                        <th>Status</th>
+                                                        <th>Joined</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {filteredUsers.map((user) => (
+                                                        <tr key={user.id}>
+                                                            <td>
+                                                                <div className="d-flex align-items-center">
+                                                                    <div className="avatar-circle me-2">
+                                                                        {user.name?.charAt(0).toUpperCase() || 'U'}
+                                                                    </div>
+                                                                    <span className="fw-bold">{user.name || 'Unknown'}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td>{user.email}</td>
+                                                            <td>
+                                                                <span className={`badge bg-${
+                                                                    user.role === 'admin' ? 'danger' :
+                                                                    user.role === 'restaurant' ? 'success' :
+                                                                    user.role === 'delivery' ? 'warning' : 'primary'
+                                                                }`}>
+                                                                    {user.role}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`badge bg-${user.isActive ? 'success' : 'secondary'}`}>
+                                                                    {user.isActive ? 'Active' : 'Suspended'}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                {user.createdAt?.toDate?.()?.toLocaleDateString() || 'Unknown'}
+                                                            </td>
+                                                            <td>
+                                                                <div className="btn-group btn-group-sm">
+                                                                    <button
+                                                                        className={`btn btn-outline-${user.isActive ? 'warning' : 'success'}`}
+                                                                        onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                                                                        title={user.isActive ? 'Suspend User' : 'Activate User'}
+                                                                    >
+                                                                        <i className={`fas fa-${user.isActive ? 'pause' : 'play'}`}></i>
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn btn-outline-danger"
+                                                                        onClick={() => handleDeleteUser(user.id, user.name)}
+                                                                        title="Delete User"
+                                                                    >
+                                                                        <i className="fas fa-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {filteredUsers.length === 0 && (
+                                            <div className="text-center py-4">
+                                                <i className="fas fa-users fa-3x text-muted mb-3"></i>
+                                                <p className="text-muted">No users found matching your criteria</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Analytics */}
+                        {activeView === 'analytics' && (
+                            <AnalyticsDashboard />
+                        )}
+
+                        {/* All Orders */}
+                        {activeView === 'orders' && (
+                            <div>
+                                <h2 className="mb-4">All Orders</h2>
+
+                                <div className="card">
+                                    <div className="card-body">
+                                        <div className="table-responsive">
+                                            <table className="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Order #</th>
+                                                        <th>Customer</th>
+                                                        <th>Restaurant</th>
+                                                        <th>Total</th>
+                                                        <th>Status</th>
+                                                        <th>Date</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {orders.slice(0, 50).map((order) => (
+                                                        <tr key={order.id}>
+                                                            <td>
+                                                                <span className="fw-bold">{order.orderNumber || order.id.slice(-6)}</span>
+                                                            </td>
+                                                            <td>{order.customerName || 'Unknown'}</td>
+                                                            <td>{order.restaurantName || 'Unknown'}</td>
+                                                            <td>{formatCurrency(order.total || 0)}</td>
+                                                            <td>
+                                                                <span className={`badge bg-${
+                                                                    order.status === 'delivered' ? 'success' :
+                                                                    order.status === 'cancelled' ? 'danger' :
+                                                                    order.status === 'preparing' ? 'warning' :
+                                                                    order.status === 'ready' ? 'info' : 'primary'
+                                                                }`}>
+                                                                    {order.status}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                {order.createdAt?.toDate?.()?.toLocaleDateString() || 'Unknown'}
+                                                            </td>
+                                                            <td>
+                                                                <button
+                                                                    className="btn btn-outline-primary btn-sm"
+                                                                    title="View Details"
+                                                                >
+                                                                    <i className="fas fa-eye"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {orders.length === 0 && (
+                                            <div className="text-center py-4">
+                                                <i className="fas fa-shopping-bag fa-3x text-muted mb-3"></i>
+                                                <p className="text-muted">No orders found</p>
+                                            </div>
+                                        )}
+
+                                        {orders.length > 50 && (
+                                            <div className="text-center mt-3">
+                                                <small className="text-muted">Showing first 50 orders</small>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -316,7 +656,7 @@ const Dashboard = () => {
                                                     <tr key={refund.id}>
                                                         <td>{refund.refundId}</td>
                                                         <td>{refund.orderId}</td>
-                                                        <td>${refund.amount?.toFixed(2)}</td>
+                                                        <td>{formatCurrency(refund.amount)}</td>
                                                         <td>{refund.reason}</td>
                                                         <td>
                                                             <span className={`badge bg-${refund.status === 'approved' ? 'success' :

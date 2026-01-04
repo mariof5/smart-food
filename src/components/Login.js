@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { USER_ROLES } from '../services/authService';
 import { toast } from 'react-toastify';
+import ThemeToggle from './UI/ThemeToggle';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -60,30 +61,31 @@ const Login = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+    <div className="min-vh-100 d-flex align-items-center justify-content-center auth-page">
       <div className="container">
-        <div className="mb-3">
-          <Link to="/" className="text-decoration-none text-secondary">
+        <div className="mb-3 d-flex justify-content-between align-items-center">
+          <Link to="/" className="back-link">
             <i className="fas fa-arrow-left me-2"></i> Back to Home
           </Link>
+          <ThemeToggle size="sm" />
         </div>
         <div className="row justify-content-center">
           <div className="col-md-6 col-lg-4">
-            <div className="card shadow">
+            <div className="card shadow auth-card">
               <div className="card-body p-4">
                 <div className="text-center mb-4">
-                  <h2 className="text-primary">
+                  <h2 className="auth-header">
                     <i className="fas fa-utensils me-2"></i>
-                    SmartFood
+                    Food Express
                   </h2>
-                  <p className="text-muted">Sign in to your account</p>
+                  <p className="auth-subtitle">Sign in to your account</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
                     <label className="form-label">Account Type</label>
                     <select
-                      className="form-select"
+                      className="form-select auth-select"
                       name="role"
                       value={formData.role}
                       onChange={handleChange}
@@ -120,11 +122,16 @@ const Login = () => {
                       placeholder="Enter your password"
                       required
                     />
+                    <div className="text-end mt-2">
+                      <Link to="/forgot-password" className="auth-link small">
+                        Forgot Password?
+                      </Link>
+                    </div>
                   </div>
 
                   <button
                     type="submit"
-                    className="btn btn-primary w-100"
+                    className="btn btn-auth-primary w-100"
                     disabled={loading}
                   >
                     {loading ? (
@@ -144,21 +151,23 @@ const Login = () => {
                 <div className="text-center mt-3">
                   <p className="mb-0">
                     Don't have an account?{' '}
-                    <Link to="/register" className="text-primary">
+                    <Link to="/register" className="auth-link">
                       Sign up here
                     </Link>
                   </p>
                 </div>
 
                 {/* Demo Accounts */}
-                <div className="mt-4 p-3 bg-light rounded">
-                  <small className="text-muted">
+                <div className="mt-4 demo-accounts">
+                  {/* <small className="text-muted">
                     <strong>Demo Accounts:</strong><br />
                     Customer: customer@demo.com / 123456<br />
                     Restaurant: restaurant@demo.com / 123456<br />
                     Delivery: delivery@demo.com / 123456
-                  </small>
+                  </small> */}
                 </div>
+
+
               </div>
             </div>
           </div>

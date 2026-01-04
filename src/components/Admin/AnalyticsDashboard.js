@@ -53,7 +53,7 @@ const AnalyticsDashboard = () => {
       // Calculate date range
       const endDate = new Date();
       const startDate = new Date();
-      
+
       switch (dateRange) {
         case '24hours':
           startDate.setDate(startDate.getDate() - 1);
@@ -109,7 +109,7 @@ const AnalyticsDashboard = () => {
     // Daily orders trend
     const dailyOrders = [];
     const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-    
+
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
@@ -117,7 +117,7 @@ const AnalyticsDashboard = () => {
         const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
         return orderDate.toDateString() === date.toDateString();
       });
-      
+
       dailyOrders.push({
         date: date.toLocaleDateString(),
         orders: dayOrders.length,
@@ -127,15 +127,27 @@ const AnalyticsDashboard = () => {
 
     // Popular categories
     const categoryCount = {};
+    const itemCount = {};
+    
     orders.forEach(order => {
       order.items?.forEach(item => {
+        // Count categories
         const category = item.category || 'other';
         categoryCount[category] = (categoryCount[category] || 0) + item.quantity;
+        
+        // Count individual items
+        const itemKey = `${item.name} (${order.restaurantName || 'Unknown'})`;
+        itemCount[itemKey] = (itemCount[itemKey] || 0) + item.quantity;
       });
     });
 
     const popularCategories = Object.entries(categoryCount)
       .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const popularItems = Object.entries(itemCount)
+      .map(([item, count]) => ({ item, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
@@ -208,6 +220,7 @@ const AnalyticsDashboard = () => {
         weeklyRevenue: dailyOrders, // Simplified
         monthlyGrowth: [], // Placeholder
         popularCategories,
+        popularItems,
         peakHours
       },
       restaurants: {
@@ -262,7 +275,7 @@ const AnalyticsDashboard = () => {
           Analytics Dashboard
         </h2>
         <div className="d-flex gap-2">
-          <select 
+          <select
             className="form-select"
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
@@ -351,9 +364,9 @@ const AnalyticsDashboard = () => {
               <div className="chart-container" style={{ height: '300px' }}>
                 {analytics.trends.dailyOrders.map((day, index) => (
                   <div key={index} className="chart-bar-wrapper">
-                    <div 
+                    <div
                       className="chart-bar bg-primary"
-                      style={{ 
+                      style={{
                         height: `${(day.orders / Math.max(...analytics.trends.dailyOrders.map(d => d.orders))) * 250}px`,
                         minHeight: '20px'
                       }}
@@ -382,11 +395,11 @@ const AnalyticsDashboard = () => {
                 {analytics.trends.popularCategories.map((category, index) => (
                   <div key={index} className="d-flex justify-content-between align-items-center mb-3">
                     <div className="d-flex align-items-center">
-                      <div 
+                      <div
                         className="category-color-indicator me-3"
-                        style={{ 
-                          width: '20px', 
-                          height: '20px', 
+                        style={{
+                          width: '20px',
+                          height: '20px',
                           backgroundColor: `hsl(${index * 45}, 70%, 50%)`,
                           borderRadius: '50%'
                         }}
@@ -399,6 +412,48 @@ const AnalyticsDashboard = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Popular Items Row */}
+      <div className="row mb-4">
+        <div className="col-md-12">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">
+                <i className="fas fa-star me-2"></i>
+                Popular Items
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row">
+                {analytics.trends.popularItems && analytics.trends.popularItems.length > 0 ? (
+                  analytics.trends.popularItems.slice(0, 8).map((item, index) => (
+                    <div key={index} className="col-md-3 col-sm-6 mb-3">
+                      <div className="card border-0 bg-light">
+                        <div className="card-body text-center p-3">
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <span className={`badge bg-${index < 3 ? 'warning' : 'secondary'}`}>
+                              #{index + 1}
+                            </span>
+                            <span className="badge bg-primary">{item.count}</span>
+                          </div>
+                          <h6 className="card-title mb-0" style={{ fontSize: '0.9rem', lineHeight: '1.2' }}>
+                            {item.item}
+                          </h6>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-12 text-center py-4">
+                    <i className="fas fa-utensils fa-3x text-muted mb-3"></i>
+                    <p className="text-muted">No item data available</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -468,14 +523,14 @@ const AnalyticsDashboard = () => {
                     </span>
                   </div>
                   <div className="d-flex align-items-center">
-                    <div 
+                    <div
                       className="progress me-3"
                       style={{ width: '100px', height: '10px' }}
                     >
-                      <div 
+                      <div
                         className="progress-bar bg-primary"
-                        style={{ 
-                          width: `${(peak.count / Math.max(...analytics.trends.peakHours.map(p => p.count))) * 100}%` 
+                        style={{
+                          width: `${(peak.count / Math.max(...analytics.trends.peakHours.map(p => p.count))) * 100}%`
                         }}
                       ></div>
                     </div>
@@ -499,19 +554,19 @@ const AnalyticsDashboard = () => {
                   Detailed Analytics
                 </h5>
                 <div className="btn-group" role="group">
-                  <button 
+                  <button
                     className={`btn ${selectedMetric === 'revenue' ? 'btn-primary' : 'btn-outline-primary'} btn-sm`}
                     onClick={() => setSelectedMetric('revenue')}
                   >
                     Revenue
                   </button>
-                  <button 
+                  <button
                     className={`btn ${selectedMetric === 'orders' ? 'btn-primary' : 'btn-outline-primary'} btn-sm`}
                     onClick={() => setSelectedMetric('orders')}
                   >
                     Orders
                   </button>
-                  <button 
+                  <button
                     className={`btn ${selectedMetric === 'customers' ? 'btn-primary' : 'btn-outline-primary'} btn-sm`}
                     onClick={() => setSelectedMetric('customers')}
                   >
@@ -529,9 +584,9 @@ const AnalyticsDashboard = () => {
                     <div className="chart-container" style={{ height: '250px' }}>
                       {analytics.trends.dailyOrders.map((day, index) => (
                         <div key={index} className="chart-bar-wrapper">
-                          <div 
+                          <div
                             className="chart-bar bg-success"
-                            style={{ 
+                            style={{
                               height: `${(day.revenue / Math.max(...analytics.trends.dailyOrders.map(d => d.revenue))) * 200}px`,
                               minHeight: '10px'
                             }}
@@ -570,9 +625,9 @@ const AnalyticsDashboard = () => {
                     <div className="chart-container" style={{ height: '250px' }}>
                       {analytics.trends.dailyOrders.map((day, index) => (
                         <div key={index} className="chart-bar-wrapper">
-                          <div 
+                          <div
                             className="chart-bar bg-info"
-                            style={{ 
+                            style={{
                               height: `${(day.orders / Math.max(...analytics.trends.dailyOrders.map(d => d.orders))) * 200}px`,
                               minHeight: '10px'
                             }}
@@ -609,7 +664,7 @@ const AnalyticsDashboard = () => {
                   <div className="col-md-6">
                     <h6>Customer Retention</h6>
                     <div className="progress mb-3" style={{ height: '30px' }}>
-                      <div 
+                      <div
                         className="progress-bar bg-success"
                         style={{ width: `${analytics.overview.customerRetentionRate}%` }}
                       >

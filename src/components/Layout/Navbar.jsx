@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { USER_ROLES } from '../../services/authService';
+import ThemeToggle from '../UI/ThemeToggle';
 
 const Navbar = () => {
     const { currentUser, userData, logout } = useAuth();
@@ -33,7 +34,7 @@ const Navbar = () => {
         <nav className="navbar navbar-smartfood navbar-expand-lg navbar-light sticky-top">
             <div className="container">
                 <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none" to="/">
-                    SmartFood
+                    Food Express
                 </Link>
                 <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span className="navbar-toggler-icon"></span>
@@ -53,7 +54,8 @@ const Navbar = () => {
                             <a className="nav-link" href="#how-it-works">How It Works</a>
                         </li>
                     </ul>
-                    <div className="d-flex">
+                    <div className="d-flex align-items-center gap-2">
+                        <ThemeToggle size="sm" />
                         {currentUser ? (
                             <div className="dropdown">
                                 <button className="btn btn-outline-primary dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown">
@@ -70,8 +72,8 @@ const Navbar = () => {
                                 </ul>
                             </div>
                         ) : (
-                            <div>
-                                <Link to="/login" className="btn btn-outline-primary me-2">
+                            <div className="d-flex gap-2">
+                                <Link to="/login" className="btn btn-outline-primary">
                                     <i className="fas fa-sign-in-alt me-1"></i> Sign In
                                 </Link>
                                 <Link to="/register" className="btn btn-primary">

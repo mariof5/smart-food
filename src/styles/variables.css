@@ -1,11 +1,82 @@
 :root {
-    --primary: #ff6b35;
-    --secondary: #2ecc71;
-    --dark: #23272f;
-    --light: #f8f9fa;
-    --accent: #3498db;
-    --gradient: linear-gradient(90deg, #ff6b35 0%, #ffb347 100%);
+    /* Custom Warm Rust & Gold Palette - Light Mode */
+    /* #662c1a - Warm Rust / Brown (Secondary) */
+    /* #f1a91a - Vibrant Gold / Orange (Primary) */
+    /* #fad7a2 - Pale Apricot (Accent) */
+    /* #f6f5f5 - Off-White (Background) */
+
+    --primary: #f1a91a;
+    --secondary: #662c1a;
+    --dark: #662c1a;
+    --light: #f6f5f5;
+    --accent: #fad7a2;
+
+    --gradient: linear-gradient(90deg, #f1a91a 0%, #662c1a 100%);
+
     --ethiopia-green: #078930;
     --ethiopia-yellow: #fcdd09;
     --ethiopia-red: #da121a;
+
+    /* Light Mode Colors */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f5f5;
+    --bg-tertiary: #f8f9fa;
+    --text-primary: #662c1a;
+    --text-secondary: #6c757d;
+    --text-muted: #adb5bd;
+    --border-color: #dee2e6;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --card-bg: #ffffff;
+    --navbar-bg: rgba(246, 245, 245, 0.95);
+
+    /* Bootstrap Overrides */
+    --bs-primary: #f1a91a;
+    --bs-primary-rgb: 241, 169, 26;
+    --bs-secondary: #662c1a;
+    --bs-secondary-rgb: 102, 44, 26;
+    --bs-light: #f6f5f5;
+    --bs-light-rgb: 246, 245, 245;
+    --bs-dark: #662c1a;
+    --bs-dark-rgb: 102, 44, 26;
+
+    --bs-body-bg: #f6f5f5;
+    --bs-body-color: #662c1a;
+
+    --bs-link-color: #662c1a;
+    --bs-link-hover-color: #f1a91a;
+}
+
+/* Dark Mode Variables */
+[data-theme="dark"] {
+    /* Dark Mode Palette */
+    --primary: #f1a91a;
+    --secondary: #e0c097;
+    --dark: #1a1a1a;
+    --light: #2d2d2d;
+    --accent: #d4a574;
+
+    --gradient: linear-gradient(90deg, #f1a91a 0%, #d4a574 100%);
+
+    /* Dark Mode Colors */
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3a3a3a;
+    --text-primary: #e0c097;
+    --text-secondary: #b8b8b8;
+    --text-muted: #888888;
+    --border-color: #404040;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --card-bg: #2d2d2d;
+    --navbar-bg: rgba(45, 45, 45, 0.95);
+
+    /* Bootstrap Overrides for Dark Mode */
+    --bs-body-bg: #1a1a1a;
+    --bs-body-color: #e0c097;
+    --bs-light: #2d2d2d;
+    --bs-light-rgb: 45, 45, 45;
+    --bs-dark: #e0c097;
+    --bs-dark-rgb: 224, 192, 151;
+
+    --bs-link-color: #e0c097;
+    --bs-link-hover-color: #f1a91a;
 }

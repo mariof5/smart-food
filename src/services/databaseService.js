@@ -57,7 +57,7 @@ const COLLECTIONS = {
   DELIVERY_PERSONNEL: 'delivery_personnel',
   REFUNDS: 'refunds',
   DISPUTES: 'disputes',
-  ORDER_MODIFICATIONS: 'order_modifications'
+  REVIEWS: 'reviews'
 };
 
 // Restaurant Services
@@ -222,9 +222,7 @@ export const orderService = {
         ...orderData,
         status: 'placed',
         canCancel: true,
-        canModify: true,
         cancellationDeadline: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-        modificationDeadline: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
         createdAt: serverTimestamp(),
         statusHistory: [{
           status: 'placed',
@@ -266,7 +264,6 @@ export const orderService = {
         cancelledBy: cancelledBy,
         cancelledAt: serverTimestamp(),
         canCancel: false,
-        canModify: false,
         statusHistory: arrayUnion({
           status: 'cancelled',
           timestamp: new Date(),
@@ -287,67 +284,7 @@ export const orderService = {
     }
   },
 
-  // Modify order
-  modifyOrder: async (orderId, modifications, modifiedBy) => {
-    try {
-      const orderDoc = await getDoc(doc(db, COLLECTIONS.ORDERS, orderId));
-      if (!orderDoc.exists()) {
-        return { success: false, error: 'Order not found' };
-      }
 
-      const order = orderDoc.data();
-
-      // Check if order can be modified
-      if (!order.canModify || ['preparing', 'ready', 'picked', 'delivered', 'cancelled'].includes(order.status)) {
-        return { success: false, error: 'Order cannot be modified at this stage' };
-      }
-
-      // Check modification deadline
-      const deadline = order.modificationDeadline?.toDate() || new Date(0);
-      if (new Date() > deadline) {
-        return { success: false, error: 'Modification deadline has passed' };
-      }
-
-      // Create modification record
-      const modificationId = uuidv4();
-      await addDoc(collection(db, COLLECTIONS.ORDER_MODIFICATIONS), {
-        orderId,
-        modificationId,
-        originalOrder: {
-          items: order.items,
-          subtotal: order.subtotal,
-          total: order.total
-        },
-        modifications,
-        modifiedBy,
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
-
-      // Update order with modifications
-      const newSubtotal = modifications.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const newTotal = newSubtotal + (order.deliveryFee || 0) + (newSubtotal * 0.1); // Including tax
-
-      await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
-        items: modifications.items,
-        subtotal: newSubtotal,
-        total: newTotal,
-        modifiedAt: serverTimestamp(),
-        modificationId,
-        statusHistory: arrayUnion({
-          status: 'modified',
-          timestamp: new Date(),
-          note: `Order modified: ${modifications.reason || 'Items updated'} `,
-          updatedBy: modifiedBy
-        })
-      });
-
-      return { success: true, modificationId };
-    } catch (error) {
-      console.error('Error modifying order:', error);
-      return { success: false, error: error.message };
-    }
-  },
 
   // Get orders by customer
   getByCustomer: async (customerId) => {
@@ -410,7 +347,6 @@ export const orderService = {
       // Update cancellation and modification permissions based on status
       if (['preparing', 'ready', 'picked'].includes(status)) {
         updates.canCancel = false;
-        updates.canModify = false;
       }
 
       await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), updates);
@@ -468,6 +404,25 @@ export const orderService = {
         callback({ id: doc.id, ...doc.data() });
       }
     });
+  },
+
+  // Get order by transaction reference
+  getByTxRef: async (tx_ref) => {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.ORDERS),
+        where('tx_ref', '==', tx_ref)
+      );
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting order by tx_ref:', error);
+      return null;
+    }
   }
 };
 
@@ -689,6 +644,27 @@ export const deliveryService = {
     }
   },
 
+  // Start delivery (transition from picked to delivering)
+  startDelivery: async (orderId, driverId, driverName) => {
+    try {
+      await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+        status: 'delivering',
+        deliveringAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        statusHistory: arrayUnion({
+          status: 'delivering',
+          timestamp: new Date(),
+          note: `${driverName} is on the way`,
+          updatedBy: driverId
+        })
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Error starting delivery:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   // Complete delivery
   completeDelivery: async (orderId, driverId) => {
     try {
@@ -749,6 +725,230 @@ export const deliveryService = {
   }
 };
 
+// Admin Services
+export const adminService = {
+  // Get all users
+  getAllUsers: async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      return [];
+    }
+  },
+
+  // Get all orders
+  getAllOrders: async () => {
+    try {
+      const querySnapshot = await getDocs(
+        query(collection(db, COLLECTIONS.ORDERS), orderBy('createdAt', 'desc'))
+      );
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error getting all orders:', error);
+      return [];
+    }
+  },
+
+  // Update user status
+  updateUserStatus: async (userId, isActive) => {
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+        isActive,
+        updatedAt: serverTimestamp()
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+        isDeleted: true,
+        deletedAt: serverTimestamp()
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Add user programmatically
+  addUser: async (userData) => {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTIONS.USERS), {
+        ...userData,
+        isActive: true,
+        isDeleted: false,
+        createdAt: serverTimestamp()
+      });
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('Error adding user:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Get platform analytics
+  getPlatformAnalytics: async () => {
+    try {
+      const [users, orders, restaurants] = await Promise.all([
+        getDocs(collection(db, COLLECTIONS.USERS)),
+        getDocs(collection(db, COLLECTIONS.ORDERS)),
+        getDocs(collection(db, COLLECTIONS.RESTAURANTS))
+      ]);
+
+      const usersData = users.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const ordersData = orders.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const restaurantsData = restaurants.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Calculate popular items
+      const itemCount = {};
+      ordersData.forEach(order => {
+        order.items?.forEach(item => {
+          const itemKey = `${item.name} (${item.restaurantName || 'Unknown'})`;
+          itemCount[itemKey] = (itemCount[itemKey] || 0) + item.quantity;
+        });
+      });
+
+      const popularItems = Object.entries(itemCount)
+        .map(([item, count]) => ({ item, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      return {
+        totalUsers: usersData.filter(u => !u.isDeleted).length,
+        activeUsers: usersData.filter(u => u.isActive && !u.isDeleted).length,
+        totalOrders: ordersData.length,
+        totalRevenue: ordersData.reduce((sum, order) => sum + (order.total || 0), 0),
+        activeRestaurants: restaurantsData.filter(r => r.isActive).length,
+        totalRestaurants: restaurantsData.length,
+        popularItems,
+        usersByRole: {
+          customers: usersData.filter(u => u.role === 'customer' && !u.isDeleted).length,
+          restaurants: usersData.filter(u => u.role === 'restaurant' && !u.isDeleted).length,
+          delivery: usersData.filter(u => u.role === 'delivery' && !u.isDeleted).length,
+          admin: usersData.filter(u => u.role === 'admin' && !u.isDeleted).length
+        }
+      };
+    } catch (error) {
+      console.error('Error getting platform analytics:', error);
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        activeRestaurants: 0,
+        totalRestaurants: 0,
+        popularItems: [],
+        usersByRole: { customers: 0, restaurants: 0, delivery: 0, admin: 0 }
+      };
+    }
+  }
+};
+
+// Review & Rating Services
+export const reviewService = {
+  // Add a review for restaurant and delivery
+  addReview: async (orderId, reviewData) => {
+    try {
+      const {
+        customerId,
+        restaurantId,
+        driverId,
+        restaurantRating,
+        deliveryRating,
+        comment
+      } = reviewData;
+
+      // 1. Save the review document
+      await addDoc(collection(db, COLLECTIONS.REVIEWS), {
+        orderId,
+        customerId,
+        restaurantId,
+        driverId,
+        restaurantRating,
+        deliveryRating,
+        comment,
+        createdAt: serverTimestamp()
+      });
+
+      // 2. Mark order as rated
+      await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+        isRated: true,
+        ratedAt: serverTimestamp()
+      });
+
+      // 3. Update Restaurant Rating
+      if (restaurantId) {
+        const restaurantRef = doc(db, COLLECTIONS.RESTAURANTS, restaurantId);
+        const restaurantDoc = await getDoc(restaurantRef);
+        if (restaurantDoc.exists()) {
+          const data = restaurantDoc.data();
+          const currentRating = data.rating || 0;
+          const totalReviews = data.totalReviews || 0;
+          const newTotalReviews = totalReviews + 1;
+          const newRating = ((currentRating * totalReviews) + restaurantRating) / newTotalReviews;
+
+          await updateDoc(restaurantRef, {
+            rating: newRating,
+            totalReviews: newTotalReviews
+          });
+        }
+      }
+
+      // 4. Update Driver Rating
+      if (driverId) {
+        // Find driver by ID (assuming driverId is the auth uid)
+        // Note: You might need to adjust based on how delivery personnel are stored
+        const driverQuery = query(collection(db, COLLECTIONS.USERS), where('uid', '==', driverId));
+        const driverSnapshot = await getDocs(driverQuery);
+
+        if (!driverSnapshot.empty) {
+          const driverDocRef = driverSnapshot.docs[0].ref;
+          const driverData = driverSnapshot.docs[0].data();
+          const currentRating = driverData.rating || 0;
+          const totalReviews = driverData.totalReviews || 0;
+          const newTotalReviews = totalReviews + 1;
+          const newRating = ((currentRating * totalReviews) + deliveryRating) / newTotalReviews;
+
+          await updateDoc(driverDocRef, {
+            rating: newRating,
+            totalReviews: newTotalReviews
+          });
+        }
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding review:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Get reviews for a restaurant
+  getRestaurantReviews: async (restaurantId) => {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.REVIEWS),
+        where('restaurantId', '==', restaurantId),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error getting restaurant reviews:', error);
+      return [];
+    }
+  }
+};
+
 // Analytics Services
 export const analyticsService = {
   // Get restaurant analytics
@@ -789,5 +989,7 @@ export default {
   refundService,
   disputeService,
   analyticsService,
-  deliveryService
+  deliveryService,
+  adminService,
+  reviewService
 };

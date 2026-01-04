@@ -44,23 +44,23 @@ const AdminDashboard = () => {
       unsubscribers.push(onSnapshot(usersQuery, (snapshot) => {
         const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const today = new Date().toDateString();
-        const newUsersToday = users.filter(user => 
+        const newUsersToday = users.filter(user =>
           user.createdAt?.toDate?.()?.toDateString() === today
         ).length;
-        
-        setStats(prev => ({ 
-          ...prev, 
+
+        setStats(prev => ({
+          ...prev,
           totalUsers: users.length,
-          newUsersToday 
+          newUsersToday
         }));
       }));
 
       // Restaurants count
       const restaurantsQuery = query(collection(db, 'restaurants'));
       unsubscribers.push(onSnapshot(restaurantsQuery, (snapshot) => {
-        setStats(prev => ({ 
-          ...prev, 
-          totalRestaurants: snapshot.docs.length 
+        setStats(prev => ({
+          ...prev,
+          totalRestaurants: snapshot.docs.length
         }));
       }));
 
@@ -69,12 +69,12 @@ const AdminDashboard = () => {
       unsubscribers.push(onSnapshot(ordersQuery, (snapshot) => {
         const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-        const activeOrders = orders.filter(order => 
+        const activeOrders = orders.filter(order =>
           !['delivered', 'cancelled'].includes(order.status)
         ).length;
-        
-        setStats(prev => ({ 
-          ...prev, 
+
+        setStats(prev => ({
+          ...prev,
           totalOrders: orders.length,
           totalRevenue,
           activeOrders
@@ -86,25 +86,25 @@ const AdminDashboard = () => {
 
       // Disputes count
       const disputesQuery = query(
-        collection(db, 'disputes'), 
+        collection(db, 'disputes'),
         where('status', '==', 'open')
       );
       unsubscribers.push(onSnapshot(disputesQuery, (snapshot) => {
-        setStats(prev => ({ 
-          ...prev, 
-          pendingDisputes: snapshot.docs.length 
+        setStats(prev => ({
+          ...prev,
+          pendingDisputes: snapshot.docs.length
         }));
       }));
 
       // Refunds count
       const refundsQuery = query(
-        collection(db, 'refunds'), 
+        collection(db, 'refunds'),
         where('status', '==', 'pending')
       );
       unsubscribers.push(onSnapshot(refundsQuery, (snapshot) => {
-        setStats(prev => ({ 
-          ...prev, 
-          pendingRefunds: snapshot.docs.length 
+        setStats(prev => ({
+          ...prev,
+          pendingRefunds: snapshot.docs.length
         }));
       }));
 
@@ -187,7 +187,7 @@ const AdminDashboard = () => {
                 <i className="fas fa-cog me-2"></i>
                 Admin Dashboard
               </h3>
-              <small className="text-light">SmartFood Management System</small>
+              <small className="text-light">Food Express Management System</small>
             </div>
             <div className="d-flex align-items-center gap-3">
               <div className="text-end">
@@ -209,7 +209,7 @@ const AdminDashboard = () => {
           <div className="p-3">
             <ul className="nav flex-column">
               <li className="nav-item mb-2">
-                <button 
+                <button
                   className={`nav-link w-100 text-start ${activeView === 'overview' ? 'active' : ''}`}
                   onClick={() => setActiveView('overview')}
                 >
@@ -218,7 +218,7 @@ const AdminDashboard = () => {
                 </button>
               </li>
               <li className="nav-item mb-2">
-                <button 
+                <button
                   className={`nav-link w-100 text-start ${activeView === 'users' ? 'active' : ''}`}
                   onClick={() => setActiveView('users')}
                 >
@@ -230,7 +230,7 @@ const AdminDashboard = () => {
                 </button>
               </li>
               <li className="nav-item mb-2">
-                <button 
+                <button
                   className={`nav-link w-100 text-start ${activeView === 'restaurants' ? 'active' : ''}`}
                   onClick={() => setActiveView('restaurants')}
                 >
@@ -239,7 +239,7 @@ const AdminDashboard = () => {
                 </button>
               </li>
               <li className="nav-item mb-2">
-                <button 
+                <button
                   className={`nav-link w-100 text-start ${activeView === 'orders' ? 'active' : ''}`}
                   onClick={() => setActiveView('orders')}
                 >
@@ -251,7 +251,7 @@ const AdminDashboard = () => {
                 </button>
               </li>
               <li className="nav-item mb-2">
-                <button 
+                <button
                   className={`nav-link w-100 text-start ${activeView === 'disputes' ? 'active' : ''}`}
                   onClick={() => setActiveView('disputes')}
                 >
@@ -265,7 +265,7 @@ const AdminDashboard = () => {
                 </button>
               </li>
               <li className="nav-item mb-2">
-                <button 
+                <button
                   className={`nav-link w-100 text-start ${activeView === 'analytics' ? 'active' : ''}`}
                   onClick={() => setActiveView('analytics')}
                 >
@@ -274,7 +274,7 @@ const AdminDashboard = () => {
                 </button>
               </li>
               <li className="nav-item mb-2">
-                <button 
+                <button
                   className={`nav-link w-100 text-start ${activeView === 'settings' ? 'active' : ''}`}
                   onClick={() => setActiveView('settings')}
                 >
@@ -310,7 +310,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="col-lg-3 col-md-6 mb-3">
                   <div className="card bg-success text-white">
                     <div className="card-body">
@@ -326,7 +326,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="col-lg-3 col-md-6 mb-3">
                   <div className="card bg-info text-white">
                     <div className="card-body">
@@ -345,7 +345,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="col-lg-3 col-md-6 mb-3">
                   <div className="card bg-warning text-white">
                     <div className="card-body">
@@ -395,7 +395,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="col-md-6">
                   <div className="card">
                     <div className="card-header">

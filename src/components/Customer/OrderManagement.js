@@ -12,10 +12,8 @@ const OrderManagement = ({ onTrackOrder }) => {
   const [activeTab, setActiveTab] = useState('orders');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showModifyModal, setShowModifyModal] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [modificationItems, setModificationItems] = useState([]);
   const [disputeForm, setDisputeForm] = useState({
     type: '',
     description: '',
@@ -98,37 +96,7 @@ const OrderManagement = ({ onTrackOrder }) => {
     }
   };
 
-  const handleModifyOrder = async () => {
-    if (!selectedOrder || modificationItems.length === 0) {
-      toast.error('Please add items to modify the order');
-      return;
-    }
 
-    try {
-      const modifications = {
-        items: modificationItems,
-        reason: 'Customer requested modification'
-      };
-
-      const result = await orderService.modifyOrder(
-        selectedOrder.id,
-        modifications,
-        currentUser.uid
-      );
-
-      if (result.success) {
-        toast.success('Order modified successfully!');
-        setShowModifyModal(false);
-        setModificationItems([]);
-        setSelectedOrder(null);
-        loadData();
-      } else {
-        toast.error(result.error || 'Failed to modify order');
-      }
-    } catch (error) {
-      toast.error('An error occurred while modifying the order');
-    }
-  };
 
   const handleCreateDispute = async () => {
     if (!selectedOrder || !disputeForm.type || !disputeForm.description.trim()) {
@@ -168,14 +136,7 @@ const OrderManagement = ({ onTrackOrder }) => {
     return new Date() <= deadline;
   };
 
-  const canModifyOrder = (order) => {
-    if (!order.canModify || ['preparing', 'ready', 'picked', 'delivered', 'cancelled'].includes(order.status)) {
-      return false;
-    }
 
-    const deadline = order.modificationDeadline?.toDate ? order.modificationDeadline.toDate() : new Date(order.modificationDeadline || 0);
-    return new Date() <= deadline;
-  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -344,19 +305,7 @@ const OrderManagement = ({ onTrackOrder }) => {
                         </button>
                       )}
 
-                      {canModifyOrder(order) && (
-                        <button
-                          className="btn btn-outline-warning btn-sm"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setModificationItems([...order.items]);
-                            setShowModifyModal(true);
-                          }}
-                        >
-                          <i className="fas fa-edit me-1"></i>
-                          Modify Order
-                        </button>
-                      )}
+
 
                       {['delivered', 'cancelled'].includes(order.status) && (
                         <button
@@ -398,10 +347,6 @@ const OrderManagement = ({ onTrackOrder }) => {
                           <i className="fas fa-info-circle me-1"></i>
                           {order.canCancel && (
                             <>Cancel by: {formatTimestamp(order.cancellationDeadline)}</>
-                          )}
-                          {order.canCancel && order.canModify && ' • '}
-                          {order.canModify && (
-                            <>Modify by: {formatTimestamp(order.modificationDeadline)}</>
                           )}
                         </small>
                       </div>

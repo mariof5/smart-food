@@ -8,16 +8,22 @@ import FeaturesSection from './Home/FeaturesSection';
 import HowItWorks from './Home/HowItWorks';
 
 const HomePage = () => {
+    const [selectedCategory, setSelectedCategory] = React.useState(null);
+
     return (
         <div className="d-flex flex-column min-vh-100">
             <Navbar />
             <main className="flex-grow-1">
                 <HeroSection />
-                <CategoriesSection />
-                <RestaurantsSection />
+                <CategoriesSection
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                />
+                <RestaurantsSection
+                    selectedCategory={selectedCategory}
+                />
                 <FeaturesSection />
                 <HowItWorks />
-
             </main>
             <Footer />
         </div>

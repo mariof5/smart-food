@@ -6,6 +6,10 @@ import RestaurantBrowser from './RestaurantBrowser';
 import RestaurantMenu from './RestaurantMenu';
 import OrderManagement from './OrderManagement';
 import OrderTracking from './OrderTracking';
+import RatingModal from './RatingModal';
+import { orderService } from '../../services/databaseService';
+import { updateDoc, doc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 
 const Dashboard = () => {
     const { currentUser, userData, logout } = useAuth();
@@ -15,6 +19,8 @@ const Dashboard = () => {
     const [trackingOrderId, setTrackingOrderId] = useState(null);
     const [cart, setCart] = useState([]);
     const [cartLoaded, setCartLoaded] = useState(false);
+    const [pendingRatingOrder, setPendingRatingOrder] = useState(null);
+    const [dismissedRatingIds, setDismissedRatingIds] = useState(new Set());
 
     // Load cart on mount/user change
     useEffect(() => {
@@ -28,12 +34,75 @@ const Dashboard = () => {
         }
     }, [currentUser?.uid]);
 
+    // Handle initial navigation state (e.g. from payment callback) or query params
+    useEffect(() => {
+        // Check query params first
+        const searchParams = new URLSearchParams(location.search);
+        const queryView = searchParams.get('view');
+        const queryOrderId = searchParams.get('orderId');
+
+        if (queryView === 'tracking' && queryOrderId) {
+            setTrackingOrderId(queryOrderId);
+            setActiveView('tracking');
+            // Clean URL (optional)
+            window.history.replaceState({}, document.title, location.pathname);
+            return;
+        }
+
+        // Fallback to location state
+        if (location.state?.view === 'tracking' && location.state?.orderId) {
+            setTrackingOrderId(location.state.orderId);
+            setActiveView('tracking');
+            // Clear state so we don't get stuck here on refresh if browser restores state (optional)
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state, location.search]);
+
     // Save cart on change
     useEffect(() => {
         if (cartLoaded && currentUser?.uid) {
             cartService.saveCart(currentUser.uid, cart);
         }
     }, [cart, cartLoaded, currentUser?.uid]);
+
+    // Listen for delivered orders to show rating popup
+    useEffect(() => {
+        if (!currentUser?.uid) return;
+
+        const unsubscribe = orderService.listenToCustomerOrders(currentUser.uid, (orders) => {
+            // Find orders that are 'delivered', not yet rated, and not dismissed in this session
+            const deliverdNotRated = orders.find(order =>
+                order.status === 'delivered' &&
+                !order.isRated &&
+                !order.ratingDismissed &&
+                !dismissedRatingIds.has(order.id)
+            );
+
+            if (deliverdNotRated) {
+                setPendingRatingOrder(deliverdNotRated);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [currentUser?.uid, dismissedRatingIds]);
+
+    const handleRatingComplete = (orderId) => {
+        setPendingRatingOrder(null);
+        setDismissedRatingIds(prev => new Set([...prev, orderId]));
+    };
+
+    const handleDismissRating = async (orderId) => {
+        setPendingRatingOrder(null);
+        setDismissedRatingIds(prev => new Set([...prev, orderId]));
+
+        // Optionally mark as dismissed in DB so it doesn't pop up on other devices
+        try {
+            const orderRef = doc(db, 'orders', orderId);
+            await updateDoc(orderRef, { ratingDismissed: true });
+        } catch (error) {
+            console.error('Error dismissing rating:', error);
+        }
+    };
 
     const handleLogout = async () => {
         await logout();
@@ -91,7 +160,7 @@ const Dashboard = () => {
             <nav className="navbar navbar-smartfood navbar-expand-lg navbar-light sticky-top">
                 <div className="container-fluid">
                     <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none" to="/">
-                        SmartFood
+                        Food Express
                     </Link>
 
                     <button
@@ -243,6 +312,15 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Rating Modal */}
+            {pendingRatingOrder && (
+                <RatingModal
+                    order={pendingRatingOrder}
+                    onRatingComplete={handleRatingComplete}
+                    onDismiss={() => handleDismissRating(pendingRatingOrder.id)}
+                />
+            )}
         </div>
     );
 };

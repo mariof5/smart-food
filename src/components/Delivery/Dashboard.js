@@ -87,57 +87,70 @@ const Dashboard = () => {
     }
 
     return (
-        <div className="min-vh-100 bg-light">
+        <div className="min-vh-100 bg-light dashboard-layout">
             {/* Navigation */}
-            <nav className="navbar navbar-expand-lg navbar-dark bg-warning sticky-top shadow-sm">
+            <nav className="navbar navbar-smartfood navbar-expand-lg navbar-light sticky-top shadow-sm">
                 <div className="container-fluid">
-                    <span className="navbar-brand text-dark fw-bold">
-                        <i className="fas fa-motorcycle me-2"></i>
-                        Driver Dashboard
+                    <span className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none">
+                        Food Express <small className="fs-6 text-muted ms-2">Driver</small>
                     </span>
 
-                    <div className="ms-auto text-dark">
-                        <span className="me-3 fw-bold">
-                            <i className="fas fa-user-circle me-2"></i>
-                            {userData?.name || 'Driver'}
-                        </span>
-                        <button className="btn btn-outline-dark btn-sm" onClick={handleLogout}>
-                            <i className="fas fa-sign-out-alt me-2"></i>
-                            Logout
-                        </button>
+                    <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarDriver">
+                        <span className="navbar-toggler-icon"></span>
+                    </button>
+
+                    <div className="collapse navbar-collapse" id="navbarDriver">
+                        <div className="ms-auto d-flex align-items-center">
+                            <div className="me-3">
+                                <span className="fw-semibold text-dark">
+                                    <i className="fas fa-user-circle me-2 text-primary"></i>
+                                    {userData?.name || 'Driver'}
+                                </span>
+                            </div>
+                            <button className="btn btn-outline-primary btn-sm rounded-pill" onClick={handleLogout}>
+                                <i className="fas fa-sign-out-alt me-2"></i>
+                                Logout
+                            </button>
+                        </div>
                     </div>
                 </div>
             </nav>
 
-            <div className="container-fluid p-4">
+            <div className="container p-4">
                 {/* Stats Cards */}
-                <div className="row g-3 mb-4">
+                <div className="row g-4 mb-4">
                     <div className="col-md-4">
-                        <div className="card border-0 shadow-sm">
-                            <div className="card-body text-center">
-                                <i className="fas fa-box fa-2x text-primary mb-2 opacity-50"></i>
-                                <h3 className="mb-0 fw-bold">{stats.totalDeliveries}</h3>
-                                <small className="text-muted">Total Deliveries</small>
+                        <div className="card border-0 shadow-sm driver-stats-card">
+                            <div className="card-body text-center p-4">
+                                <div className="feature-icon mb-3">
+                                    <i className="fas fa-box"></i>
+                                </div>
+                                <h3 className="mb-1 fw-bold">{stats.totalDeliveries}</h3>
+                                <p className="text-muted text-uppercase small fw-bold mb-0">Total Deliveries</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="col-md-4">
-                        <div className="card border-0 shadow-sm">
-                            <div className="card-body text-center">
-                                <i className="fas fa-calendar-day fa-2x text-warning mb-2 opacity-50"></i>
-                                <h3 className="mb-0 fw-bold">{stats.todayDeliveries}</h3>
-                                <small className="text-muted">Today's Deliveries</small>
+                        <div className="card border-0 shadow-sm driver-stats-card highlight-gold">
+                            <div className="card-body text-center p-4">
+                                <div className="feature-icon bg-warning bg-opacity-10 text-warning mb-3">
+                                    <i className="fas fa-calendar-day"></i>
+                                </div>
+                                <h3 className="mb-1 fw-bold">{stats.todayDeliveries}</h3>
+                                <p className="text-muted text-uppercase small fw-bold mb-0">Today's Deliveries</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="col-md-4">
-                        <div className="card border-0 shadow-sm">
-                            <div className="card-body text-center">
-                                <i className="fas fa-wallet fa-2x text-success mb-2 opacity-50"></i>
-                                <h3 className="mb-0 fw-bold">{stats.earnings.toFixed(2)} ETB</h3>
-                                <small className="text-muted">Today's Earnings</small>
+                        <div className="card border-0 shadow-sm driver-stats-card highlight-rust">
+                            <div className="card-body text-center p-4">
+                                <div className="feature-icon bg-success bg-opacity-10 text-success mb-3">
+                                    <i className="fas fa-wallet"></i>
+                                </div>
+                                <h3 className="mb-1 fw-bold text-primary">{stats.earnings.toFixed(2)} <small className="fs-6">ETB</small></h3>
+                                <p className="text-muted text-uppercase small fw-bold mb-0">Today's Earnings</p>
                             </div>
                         </div>
                     </div>

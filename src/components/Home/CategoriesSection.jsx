@@ -1,18 +1,39 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { categories } from '../../data/categories';
+import { toast } from 'react-toastify';
 
-const CategoriesSection = () => {
+const CategoriesSection = ({ selectedCategory, setSelectedCategory }) => {
+    const { currentUser } = useAuth();
+    const navigate = useNavigate();
+
+    const handleCategoryClick = (categoryId) => {
+        if (!currentUser) {
+            toast.info('Please sign up to browse popular categories');
+            navigate('/register');
+            return;
+        }
+
+        if (selectedCategory === categoryId) {
+            setSelectedCategory(null); // Deselect if already selected
+        } else {
+            setSelectedCategory(categoryId);
+        }
+    };
     return (
         <section className="py-5 bg-light">
             <div className="container">
-                <div className="d-flex justify-content-between align-items-center mb-4">
+                <div className="mb-4">
                     <h2 className="section-title">Popular Categories</h2>
-                    <a href="#" className="text-primary">View All</a>
                 </div>
-                <div className="row g-4">
+                <div className="row g-4 scroll-container">
                     {categories.map((cat) => (
-                        <div key={cat.id} className="col-md-2 col-6 text-center">
-                            <div className="category-badge">
+                        <div key={cat.id} className="col-auto">
+                            <div
+                                className={`category-badge ${selectedCategory === cat.id ? 'active' : ''}`}
+                                onClick={() => handleCategoryClick(cat.id)}
+                            >
                                 <i className={`${cat.icon} me-2`}></i> {cat.name}
                             </div>
                         </div>
