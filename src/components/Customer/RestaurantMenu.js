@@ -20,6 +20,10 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
     const [addressSuggestions, setAddressSuggestions] = useState([]);
     const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
+    // Scheduled Delivery State
+    const [deliveryType, setDeliveryType] = useState('asap');
+    const [scheduledTime, setScheduledTime] = useState('');
+
     const handleAddressChange = (e) => {
         const value = e.target.value;
         setDeliveryAddress(value);
@@ -44,6 +48,23 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
         } finally {
             setIsDetectingLocation(false);
         }
+    };
+
+    const validateScheduledTime = (selectedTime) => {
+        if (!selectedTime) return false;
+        
+        const now = new Date();
+        const scheduled = new Date(selectedTime);
+        const timeDifference = scheduled.getTime() - now.getTime();
+        const thirtyMinutesInMs = 30 * 60 * 1000; // 30 minutes in milliseconds
+        
+        return timeDifference >= thirtyMinutesInMs;
+    };
+
+    const getMinDateTime = () => {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 30); // Add 30 minutes to current time
+        return now.toISOString().slice(0, 16); // Format for datetime-local input
     };
 
     useEffect(() => {
@@ -118,6 +139,18 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
             return;
         }
 
+        // Validate scheduled delivery time
+        if (deliveryType === 'scheduled') {
+            if (!scheduledTime) {
+                toast.error('Please select a delivery time');
+                return;
+            }
+            if (!validateScheduledTime(scheduledTime)) {
+                toast.error('Scheduled delivery time must be at least 30 minutes from now');
+                return;
+            }
+        }
+
         setIsPlacingOrder(true);
 
         try {
@@ -138,8 +171,9 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
                 phoneNumber,
                 specialInstructions,
                 paymentMethod,
-                paymentMethod,
                 paymentStatus: 'pending',
+                deliveryType,
+                scheduledTime: deliveryType === 'scheduled' ? scheduledTime : null,
                 createdAt: new Date().toISOString()
             };
 
@@ -479,6 +513,68 @@ const RestaurantMenu = ({ restaurant, onBack, cart, setCart, onOrderPlaced }) =>
                                                 onChange={(e) => setSpecialInstructions(e.target.value)}
                                                 placeholder="Any special requests?"
                                             />
+                                        </div>
+
+                                        {/* Delivery Type Selection */}
+                                        <div className="mb-3">
+                                            <label className="form-label small fw-bold">Delivery Time</label>
+                                            <div className="d-flex gap-2 mb-2">
+                                                <div className="form-check">
+                                                    <input
+                                                        className="form-check-input"
+                                                        type="radio"
+                                                        name="deliveryType"
+                                                        id="deliveryASAP"
+                                                        checked={deliveryType === 'asap'}
+                                                        onChange={() => setDeliveryType('asap')}
+                                                    />
+                                                    <label className="form-check-label" htmlFor="deliveryASAP">
+                                                        <i className="fas fa-bolt me-1 text-warning"></i>
+                                                        ASAP
+                                                    </label>
+                                                </div>
+                                                <div className="form-check">
+                                                    <input
+                                                        className="form-check-input"
+                                                        type="radio"
+                                                        name="deliveryType"
+                                                        id="deliveryScheduled"
+                                                        checked={deliveryType === 'scheduled'}
+                                                        onChange={() => setDeliveryType('scheduled')}
+                                                    />
+                                                    <label className="form-check-label" htmlFor="deliveryScheduled">
+                                                        <i className="fas fa-clock me-1 text-primary"></i>
+                                                        Schedule for later
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            {deliveryType === 'scheduled' && (
+                                                <div className="mt-2">
+                                                    <label className="form-label small">Select delivery time</label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        className="form-control form-control-sm"
+                                                        value={scheduledTime}
+                                                        onChange={(e) => setScheduledTime(e.target.value)}
+                                                        min={getMinDateTime()}
+                                                        required={deliveryType === 'scheduled'}
+                                                    />
+                                                    <small className="text-muted">
+                                                        <i className="fas fa-info-circle me-1"></i>
+                                                        Minimum 30 minutes from now
+                                                    </small>
+                                                </div>
+                                            )}
+
+                                            {deliveryType === 'asap' && (
+                                                <div className="alert alert-light border p-2 mt-2">
+                                                    <small className="text-muted">
+                                                        <i className="fas fa-clock me-1"></i>
+                                                        Estimated delivery: {restaurant.deliveryTime || '30-45 min'}
+                                                    </small>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Payment Method */}

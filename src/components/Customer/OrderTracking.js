@@ -4,7 +4,7 @@ import { orderService } from '../../services/databaseService';
 import { toast } from 'react-toastify';
 import OrderTrackingMap from './OrderTrackingMap';
 
-const OrderTracking = ({ orderId, onClose }) => {
+const OrderTracking = ({ orderId, onBack }) => {
   const { currentUser } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -116,6 +116,18 @@ const OrderTracking = ({ orderId, onClose }) => {
 
   return (
     <div className="container-fluid">
+      {/* Back Button */}
+      {onBack && (
+        <div className="row mb-3">
+          <div className="col-12">
+            <button className="btn btn-link text-decoration-none p-0" onClick={onBack}>
+              <i className="fas fa-arrow-left me-2"></i>
+              Back to Orders
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="row mb-4">
         <div className="col-12">

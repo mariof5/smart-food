@@ -12,6 +12,7 @@ const Login = () => {
     role: USER_ROLES.CUSTOMER
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -113,15 +114,25 @@ const Login = () => {
 
                   <div className="mb-3">
                     <label className="form-label">Password</label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      placeholder="Enter your password"
-                      required
-                    />
+                    <div className="input-group">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        className="form-control"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        placeholder="Enter your password"
+                        required
+                      />
+                      <button
+                        className="btn btn-outline-secondary border-start-0"
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                      >
+                        <i className={`fas fa-eye${showPassword ? '-slash' : ''}`}></i>
+                      </button>
+                    </div>
                     <div className="text-end mt-2">
                       <Link to="/forgot-password" className="auth-link small">
                         Forgot Password?

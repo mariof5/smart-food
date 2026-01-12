@@ -8,28 +8,73 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [lastResetTime, setLastResetTime] = useState(null);
+
+  const startResendTimer = () => {
+    setResendTimer(60); // 1 minute cooldown
+    setLastResetTime(new Date());
+    const interval = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!email) {
+
+    if (!email || !email.trim()) {
       toast.error('Please enter your email address');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
 
     try {
-      const result = await resetPassword(email);
+      const result = await resetPassword(email.trim());
 
       if (result.success) {
         setEmailSent(true);
-        toast.success('Password reset email sent! Check your inbox.');
+        toast.success('Password reset email sent! Check your inbox and spam folder.');
+        startResendTimer();
       } else {
         toast.error(result.error || 'Failed to send password reset email');
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      console.error('Password reset error:', error);
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendTimer > 0 || !email) return;
+
+    setLoading(true);
+    try {
+      const result = await resetPassword(email.trim());
+      if (result.success) {
+        toast.success('Reset link resent successfully! Check your email.');
+        startResendTimer();
+      } else {
+        toast.error(result.error || 'Failed to resend reset link');
+      }
+    } catch (error) {
+      console.error('Resend error:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -57,28 +102,44 @@ const ForgotPassword = () => {
                     </p>
                   </div>
 
-                  <div className="alert alert-info">
-                    <i className="fas fa-info-circle me-2"></i>
-                    <small>
-                      Check your email and click the reset link to create a new password. 
-                      The link will expire in 1 hour.
-                    </small>
-                  </div>
+
+
+                  {lastResetTime && (
+                    <div className="alert alert-warning">
+                      <i className="fas fa-clock me-2"></i>
+                      <small>
+                        Email sent at {lastResetTime.toLocaleTimeString()}.
+                        You can request another reset link in {resendTimer > 0 ? `${resendTimer} seconds` : 'now'}.
+                      </small>
+                    </div>
+                  )}
 
                   <div className="d-grid gap-2">
-                    <Link to="/login" className="btn btn-auth-primary">
-                      <i className="fas fa-sign-in-alt me-2"></i>
-                      Return to Login
-                    </Link>
-                    <button 
+                    <button
+                      className="btn btn-auth-primary"
+                      onClick={handleResend}
+                      disabled={loading || resendTimer > 0}
+                      title={resendTimer > 0 ? `Wait ${resendTimer} seconds before resending` : 'Send another reset link'}
+                    >
+                      {loading ? (
+                        <><i className="fas fa-spinner fa-spin me-2"></i>Sending...</>
+                      ) : (
+                        <>
+                          <i className="fas fa-paper-plane me-2"></i>
+                          {resendTimer > 0 ? `Resend Link (${resendTimer}s)` : 'Resend Reset Link'}
+                        </>
+                      )}
+                    </button>
+                    <button
                       className="btn btn-outline-secondary"
                       onClick={() => {
                         setEmailSent(false);
                         setEmail('');
+                        setResendTimer(0);
                       }}
                     >
-                      <i className="fas fa-redo me-2"></i>
-                      Send Another Email
+                      <i className="fas fa-arrow-left me-2"></i>
+                      Use Different Email
                     </button>
                   </div>
                 </div>
@@ -113,21 +174,33 @@ const ForgotPassword = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-4">
                     <label className="form-label">Email Address</label>
-                    <input
-                      type="email"
-                      className="form-control"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email address"
-                      required
-                      autoFocus
-                    />
+                    <div className="input-group">
+                      <span className="input-group-text">
+                        <i className="fas fa-envelope text-muted"></i>
+                      </span>
+                      <input
+                        type="email"
+                        className="form-control"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email address"
+                        required
+                        autoFocus
+                        autoComplete="email"
+                      />
+                    </div>
+                    {email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
+                      <small className="text-danger mt-1 d-block">
+                        <i className="fas fa-exclamation-triangle me-1"></i>
+                        Please enter a valid email address
+                      </small>
+                    )}
                   </div>
 
                   <button
                     type="submit"
                     className="btn btn-auth-primary w-100 mb-3"
-                    disabled={loading}
+                    disabled={loading || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)}
                   >
                     {loading ? (
                       <>

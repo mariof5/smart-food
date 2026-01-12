@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { orderService, refundService, disputeService } from '../../services/databaseService';
+import { orderService, refundService, disputeService, menuService } from '../../services/databaseService';
 
 const OrderManagement = ({ onTrackOrder }) => {
   const { currentUser } = useAuth();
@@ -12,8 +12,13 @@ const OrderManagement = ({ onTrackOrder }) => {
   const [activeTab, setActiveTab] = useState('orders');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showModifyModal, setShowModifyModal] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [modifiedItems, setModifiedItems] = useState([]);
+  const [availableMenuItems, setAvailableMenuItems] = useState([]);
+  const [showAddItemsSection, setShowAddItemsSection] = useState(false);
+  const [loadingMenu, setLoadingMenu] = useState(false);
   const [disputeForm, setDisputeForm] = useState({
     type: '',
     description: '',
@@ -134,6 +139,137 @@ const OrderManagement = ({ onTrackOrder }) => {
 
     const deadline = order.cancellationDeadline?.toDate ? order.cancellationDeadline.toDate() : new Date(order.cancellationDeadline || 0);
     return new Date() <= deadline;
+  };
+
+  const canModifyOrder = (order) => {
+    if (!order.canModify || ['ready', 'picked', 'delivered', 'cancelled'].includes(order.status)) {
+      return false;
+    }
+
+    const deadline = order.modificationDeadline?.toDate ? order.modificationDeadline.toDate() : new Date(order.modificationDeadline || 0);
+    return new Date() <= deadline;
+  };
+
+  const handleModifyOrder = async () => {
+    if (!selectedOrder) return;
+    
+    // Initialize modified items with current order items
+    setModifiedItems(selectedOrder.items.map(item => ({ ...item })));
+    
+    // Load restaurant menu items
+    setLoadingMenu(true);
+    try {
+      const menuItems = await menuService.getByRestaurant(selectedOrder.restaurantId);
+      // Filter out items that are already in the order and only show available items
+      const currentItemIds = selectedOrder.items.map(item => item.id);
+      const availableItems = menuItems.filter(item => 
+        !currentItemIds.includes(item.id) && item.available
+      );
+      setAvailableMenuItems(availableItems);
+    } catch (error) {
+      console.error('Error loading menu items:', error);
+      toast.error('Failed to load menu items');
+    } finally {
+      setLoadingMenu(false);
+    }
+    
+    setShowModifyModal(true);
+  };
+
+  const updateItemQuantity = (index, newQuantity) => {
+    if (newQuantity < 0) return;
+    
+    const updatedItems = [...modifiedItems];
+    if (newQuantity === 0) {
+      // Remove item if quantity is 0
+      updatedItems.splice(index, 1);
+    } else {
+      updatedItems[index].quantity = newQuantity;
+    }
+    setModifiedItems(updatedItems);
+  };
+
+  const removeItem = (index) => {
+    const updatedItems = modifiedItems.filter((_, i) => i !== index);
+    setModifiedItems(updatedItems);
+  };
+
+  const addMenuItem = (menuItem) => {
+    // Check if item is already in the modified order
+    const existingItemIndex = modifiedItems.findIndex(item => item.id === menuItem.id);
+    
+    if (existingItemIndex >= 0) {
+      // If item exists, increase quantity
+      updateItemQuantity(existingItemIndex, modifiedItems[existingItemIndex].quantity + 1);
+    } else {
+      // Add new item with quantity 1
+      const newItem = {
+        id: menuItem.id,
+        name: menuItem.name,
+        description: menuItem.description,
+        price: menuItem.price,
+        image: menuItem.image,
+        quantity: 1,
+        restaurantId: selectedOrder.restaurantId,
+        restaurantName: selectedOrder.restaurantName
+      };
+      setModifiedItems([...modifiedItems, newItem]);
+    }
+    
+    // Remove from available items
+    setAvailableMenuItems(availableMenuItems.filter(item => item.id !== menuItem.id));
+    toast.success(`${menuItem.name} added to order`);
+  };
+
+  const removeAddedItem = (menuItem) => {
+    // Remove from modified items
+    setModifiedItems(modifiedItems.filter(item => item.id !== menuItem.id));
+    
+    // Add back to available items if it wasn't in original order
+    const wasInOriginalOrder = selectedOrder.items.some(item => item.id === menuItem.id);
+    if (!wasInOriginalOrder) {
+      setAvailableMenuItems([...availableMenuItems, menuItem]);
+    }
+  };
+
+  const calculateModifiedTotal = () => {
+    const subtotal = modifiedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const deliveryFee = selectedOrder?.deliveryFee || 0;
+    const tax = selectedOrder?.tax || 0;
+    return {
+      subtotal,
+      total: subtotal + deliveryFee + tax
+    };
+  };
+
+  const submitOrderModification = async () => {
+    if (!selectedOrder || modifiedItems.length === 0) {
+      toast.error('Order must have at least one item');
+      return;
+    }
+
+    try {
+      const { subtotal, total } = calculateModifiedTotal();
+      
+      const result = await orderService.modifyOrder(
+        selectedOrder.id,
+        modifiedItems,
+        subtotal,
+        total,
+        currentUser.uid
+      );
+
+      if (result.success) {
+        toast.success('Order modified successfully!');
+        setShowModifyModal(false);
+        setModifiedItems([]);
+        setSelectedOrder(null);
+      } else {
+        toast.error(result.error || 'Failed to modify order');
+      }
+    } catch (error) {
+      toast.error('An error occurred while modifying the order');
+    }
   };
 
 
@@ -262,7 +398,41 @@ const OrderManagement = ({ onTrackOrder }) => {
                         <h6>Delivery Info</h6>
                         <p className="mb-1"><strong>Address:</strong> {order.deliveryAddress}</p>
                         <p className="mb-1"><strong>Phone:</strong> {order.phoneNumber}</p>
-                        <p className="mb-0"><strong>Scheduled:</strong> {formatTimestamp(order.deliveryDateTime)}</p>
+                        
+                        {/* Delivery Type and Scheduled Time */}
+                        <div className="mb-1">
+                          {order.deliveryType === 'scheduled' ? (
+                            <div>
+                              <strong>Delivery Type:</strong> 
+                              <span className="badge bg-info text-dark ms-2">
+                                <i className="fas fa-clock me-1"></i>
+                                Scheduled
+                              </span>
+                              {order.scheduledTime && (
+                                <div className="mt-1">
+                                  <strong>Scheduled for:</strong> 
+                                  <span className="text-primary ms-1">
+                                    {new Date(order.scheduledTime).toLocaleString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              <strong>Delivery Type:</strong> 
+                              <span className="badge bg-warning text-dark ms-2">
+                                <i className="fas fa-bolt me-1"></i>
+                                ASAP
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -292,6 +462,19 @@ const OrderManagement = ({ onTrackOrder }) => {
 
                     {/* Action Buttons */}
                     <div className="d-flex gap-2 flex-wrap">
+                      {canModifyOrder(order) && (
+                        <button
+                          className="btn btn-outline-warning btn-sm"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            handleModifyOrder();
+                          }}
+                        >
+                          <i className="fas fa-edit me-1"></i>
+                          Modify Order
+                        </button>
+                      )}
+
                       {canCancelOrder(order) && (
                         <button
                           className="btn btn-outline-danger btn-sm"
@@ -347,6 +530,10 @@ const OrderManagement = ({ onTrackOrder }) => {
                           <i className="fas fa-info-circle me-1"></i>
                           {order.canCancel && (
                             <>Cancel by: {formatTimestamp(order.cancellationDeadline)}</>
+                          )}
+                          {order.canCancel && order.canModify && <br />}
+                          {order.canModify && (
+                            <>Modify by: {formatTimestamp(order.modificationDeadline)}</>
                           )}
                         </small>
                       </div>
@@ -494,6 +681,257 @@ const OrderManagement = ({ onTrackOrder }) => {
                   disabled={!cancelReason}
                 >
                   Cancel Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modify Order Modal */}
+      {showModifyModal && (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="fas fa-edit me-2"></i>
+                  Modify Order {selectedOrder?.orderNumber}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowModifyModal(false);
+                    setShowAddItemsSection(false);
+                    setModifiedItems([]);
+                    setAvailableMenuItems([]);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="alert alert-warning">
+                  <i className="fas fa-exclamation-triangle me-2"></i>
+                  <strong>Important:</strong> You can adjust quantities, remove items, or add new items from the menu. 
+                  If you've already paid, price differences may require manual handling.
+                </div>
+
+                {/* Navigation Tabs */}
+                <ul className="nav nav-tabs mb-3">
+                  <li className="nav-item">
+                    <button
+                      className={`nav-link ${!showAddItemsSection ? 'active' : ''}`}
+                      onClick={() => setShowAddItemsSection(false)}
+                    >
+                      <i className="fas fa-edit me-2"></i>
+                      Current Items ({modifiedItems.length})
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button
+                      className={`nav-link ${showAddItemsSection ? 'active' : ''}`}
+                      onClick={() => setShowAddItemsSection(true)}
+                    >
+                      <i className="fas fa-plus me-2"></i>
+                      Add Items ({availableMenuItems.length})
+                    </button>
+                  </li>
+                </ul>
+
+                {/* Current Items Tab */}
+                {!showAddItemsSection && (
+                  <div>
+                    <h6 className="mb-3">Current Order Items</h6>
+                    {modifiedItems.length === 0 ? (
+                      <div className="text-center py-4">
+                        <i className="fas fa-shopping-cart fa-2x text-muted mb-2"></i>
+                        <p className="text-muted">No items in order</p>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => setShowAddItemsSection(true)}
+                        >
+                          <i className="fas fa-plus me-1"></i>
+                          Add Items from Menu
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="order-items-list">
+                        {modifiedItems.map((item, index) => (
+                          <div key={index} className="d-flex align-items-center mb-3 p-3 border rounded">
+                            {item.image && (
+                              <img
+                                src={item.image}
+                                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }}
+                                alt={item.name}
+                              />
+                            )}
+                            <div className="flex-grow-1 ms-3">
+                              <h6 className="mb-1">{item.name}</h6>
+                              <p className="text-muted small mb-1">{item.description}</p>
+                              <strong className="text-primary">{item.price} ETB each</strong>
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              <div className="input-group" style={{ width: '120px' }}>
+                                <button
+                                  className="btn btn-outline-secondary btn-sm"
+                                  type="button"
+                                  onClick={() => updateItemQuantity(index, item.quantity - 1)}
+                                >
+                                  <i className="fas fa-minus"></i>
+                                </button>
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm text-center"
+                                  value={item.quantity}
+                                  onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
+                                  min="0"
+                                />
+                                <button
+                                  className="btn btn-outline-secondary btn-sm"
+                                  type="button"
+                                  onClick={() => updateItemQuantity(index, item.quantity + 1)}
+                                >
+                                  <i className="fas fa-plus"></i>
+                                </button>
+                              </div>
+                              <button
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => removeItem(index)}
+                                title="Remove item"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            </div>
+                            <div className="ms-3 text-end">
+                              <strong>{(item.price * item.quantity).toFixed(2)} ETB</strong>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Add Items Tab */}
+                {showAddItemsSection && (
+                  <div>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h6 className="mb-0">Available Menu Items</h6>
+                      {loadingMenu && (
+                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {availableMenuItems.length === 0 ? (
+                      <div className="text-center py-4">
+                        <i className="fas fa-utensils fa-2x text-muted mb-2"></i>
+                        <p className="text-muted">
+                          {loadingMenu ? 'Loading menu items...' : 'No additional items available to add'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="available-items-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                        {availableMenuItems.map((item) => (
+                          <div 
+                            key={item.id} 
+                            className="d-flex align-items-center mb-3 p-3 border rounded shadow-sm"
+                            style={{ 
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                          >
+                            {item.image && (
+                              <img
+                                src={item.image}
+                                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }}
+                                alt={item.name}
+                              />
+                            )}
+                            <div className="flex-grow-1 ms-3">
+                              <h6 className="mb-1">{item.name}</h6>
+                              <p className="text-muted small mb-1">{item.description}</p>
+                              <strong className="text-success">{item.price} ETB</strong>
+                            </div>
+                            <button
+                              className="btn btn-outline-primary btn-sm"
+                              onClick={() => addMenuItem(item)}
+                            >
+                              <i className="fas fa-plus me-1"></i>
+                              Add
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Order Summary */}
+                {modifiedItems.length > 0 && (
+                  <div className="mt-4 p-3 bg-light rounded">
+                    <h6>Updated Order Summary</h6>
+                    <div className="d-flex justify-content-between">
+                      <span>Subtotal:</span>
+                      <span>{calculateModifiedTotal().subtotal.toFixed(2)} ETB</span>
+                    </div>
+                    <div className="d-flex justify-content-between">
+                      <span>Delivery Fee:</span>
+                      <span>{(selectedOrder?.deliveryFee || 0).toFixed(2)} ETB</span>
+                    </div>
+                    <div className="d-flex justify-content-between">
+                      <span>Tax:</span>
+                      <span>{(selectedOrder?.tax || 0).toFixed(2)} ETB</span>
+                    </div>
+                    <hr />
+                    <div className="d-flex justify-content-between fw-bold">
+                      <span>New Total:</span>
+                      <span className="text-primary">{calculateModifiedTotal().total.toFixed(2)} ETB</span>
+                    </div>
+                    <div className="d-flex justify-content-between text-muted small">
+                      <span>Original Total:</span>
+                      <span>{selectedOrder?.total?.toFixed(2)} ETB</span>
+                    </div>
+                    <div className="d-flex justify-content-between small">
+                      <span>Difference:</span>
+                      <span className={calculateModifiedTotal().total > selectedOrder?.total ? 'text-danger' : 'text-success'}>
+                        {calculateModifiedTotal().total > selectedOrder?.total ? '+' : ''}
+                        {(calculateModifiedTotal().total - (selectedOrder?.total || 0)).toFixed(2)} ETB
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowModifyModal(false);
+                    setShowAddItemsSection(false);
+                    setModifiedItems([]);
+                    setAvailableMenuItems([]);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={submitOrderModification}
+                  disabled={modifiedItems.length === 0}
+                >
+                  <i className="fas fa-save me-1"></i>
+                  Save Changes
                 </button>
               </div>
             </div>

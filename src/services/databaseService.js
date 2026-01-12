@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { v4 as uuidv4 } from 'uuid';
+import { getFriendlyErrorMessage } from '../utils/errorHandlers';
 
 // Storage Service (Base64 Implementation)
 export const storageService = {
@@ -96,7 +97,7 @@ export const restaurantService = {
       return { success: true };
     } catch (error) {
       console.error('Error updating restaurant:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   }
 };
@@ -141,7 +142,7 @@ export const menuService = {
       return { success: true, id: docRef.id };
     } catch (error) {
       console.error('Error adding menu item:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -156,7 +157,7 @@ export const menuService = {
       return { success: true };
     } catch (error) {
       console.error('Error updating menu item:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -170,7 +171,7 @@ export const menuService = {
       return { success: true };
     } catch (error) {
       console.error('Error deleting menu item:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   }
 };
@@ -196,7 +197,7 @@ export const cartService = {
       return { success: true };
     } catch (error) {
       console.error('Error saving cart:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -222,7 +223,9 @@ export const orderService = {
         ...orderData,
         status: 'placed',
         canCancel: true,
+        canModify: true,
         cancellationDeadline: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        modificationDeadline: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
         createdAt: serverTimestamp(),
         statusHistory: [{
           status: 'placed',
@@ -233,7 +236,7 @@ export const orderService = {
       return { success: true, id: docRef.id, orderNumber };
     } catch (error) {
       console.error('Error creating order:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -280,7 +283,49 @@ export const orderService = {
       return { success: true };
     } catch (error) {
       console.error('Error cancelling order:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
+    }
+  },
+
+  // Modify order items and quantities
+  modifyOrder: async (orderId, newItems, newSubtotal, newTotal, modifiedBy) => {
+    try {
+      const orderDoc = await getDoc(doc(db, COLLECTIONS.ORDERS, orderId));
+      if (!orderDoc.exists()) {
+        return { success: false, error: 'Order not found' };
+      }
+
+      const order = orderDoc.data();
+
+      // Check if order can be modified
+      if (!order.canModify || ['ready', 'picked', 'delivered', 'cancelled'].includes(order.status)) {
+        return { success: false, error: 'Order cannot be modified at this stage' };
+      }
+
+      // Check modification deadline
+      const deadline = order.modificationDeadline?.toDate() || new Date(0);
+      if (new Date() > deadline && order.status !== 'placed') {
+        return { success: false, error: 'Modification deadline has passed' };
+      }
+
+      await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+        items: newItems,
+        subtotal: newSubtotal,
+        total: newTotal,
+        modifiedAt: serverTimestamp(),
+        modifiedBy: modifiedBy,
+        statusHistory: arrayUnion({
+          status: order.status,
+          timestamp: new Date(),
+          note: 'Order items modified by customer',
+          updatedBy: modifiedBy
+        })
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error modifying order:', error);
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -348,12 +393,16 @@ export const orderService = {
       if (['preparing', 'ready', 'picked'].includes(status)) {
         updates.canCancel = false;
       }
+      
+      if (['ready', 'picked', 'delivered'].includes(status)) {
+        updates.canModify = false;
+      }
 
       await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), updates);
       return { success: true };
     } catch (error) {
       console.error('Error updating order status:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -447,7 +496,7 @@ export const refundService = {
       return { success: true, refundId };
     } catch (error) {
       console.error('Error initiating refund:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -464,7 +513,7 @@ export const refundService = {
       return { success: true };
     } catch (error) {
       console.error('Error processing refund:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -515,7 +564,7 @@ export const disputeService = {
       return { success: true, disputeId };
     } catch (error) {
       console.error('Error creating dispute:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -535,7 +584,7 @@ export const disputeService = {
       return { success: true };
     } catch (error) {
       console.error('Error adding dispute message:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -552,7 +601,7 @@ export const disputeService = {
       return { success: true };
     } catch (error) {
       console.error('Error resolving dispute:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -640,7 +689,7 @@ export const deliveryService = {
       return { success: true };
     } catch (error) {
       console.error('Error accepting delivery:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -661,7 +710,7 @@ export const deliveryService = {
       return { success: true };
     } catch (error) {
       console.error('Error starting delivery:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -684,7 +733,7 @@ export const deliveryService = {
       return { success: true };
     } catch (error) {
       console.error('Error completing delivery:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -721,6 +770,45 @@ export const deliveryService = {
     } catch (error) {
       console.error('Error getting driver stats:', error);
       return { totalDeliveries: 0, earnings: 0, todayDeliveries: 0 };
+    }
+  },
+
+  // Update delivery personnel info
+  update: async (driverId, data) => {
+    try {
+      // Update delivery personnel document if it exists
+      const deliveryPersonnelRef = doc(db, COLLECTIONS.DELIVERY_PERSONNEL, driverId);
+      const deliveryDoc = await getDoc(deliveryPersonnelRef);
+      
+      if (deliveryDoc.exists()) {
+        await updateDoc(deliveryPersonnelRef, {
+          ...data,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Create delivery personnel document if it doesn't exist
+        await setDoc(deliveryPersonnelRef, {
+          ...data,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating delivery personnel:', error);
+      return { success: false, error: getFriendlyErrorMessage(error) };
+    }
+  },
+
+  // Get delivery personnel info
+  getById: async (driverId) => {
+    try {
+      const docSnap = await getDoc(doc(db, COLLECTIONS.DELIVERY_PERSONNEL, driverId));
+      return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+    } catch (error) {
+      console.error('Error getting delivery personnel:', error);
+      return null;
     }
   }
 };
@@ -761,7 +849,7 @@ export const adminService = {
       return { success: true };
     } catch (error) {
       console.error('Error updating user status:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -775,7 +863,7 @@ export const adminService = {
       return { success: true };
     } catch (error) {
       console.error('Error deleting user:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -791,7 +879,7 @@ export const adminService = {
       return { success: true, id: docRef.id };
     } catch (error) {
       console.error('Error adding user:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 
@@ -928,7 +1016,7 @@ export const reviewService = {
       return { success: true };
     } catch (error) {
       console.error('Error adding review:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getFriendlyErrorMessage(error) };
     }
   },
 

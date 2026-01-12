@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { restaurantService, menuService, orderService, analyticsService, storageService } from '../../services/databaseService';
 import { toast } from 'react-toastify';
+import Profile from './Profile';
 
 const Dashboard = () => {
     const { currentUser, userData, logout } = useAuth();
@@ -13,11 +14,12 @@ const Dashboard = () => {
     const [activeView, setActiveView] = useState('overview');
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [deliveryFilter, setDeliveryFilter] = useState('all');
 
-    // Profile Edit State
-    const [isEditingProfile, setIsEditingProfile] = useState(false);
-    const [profileForm, setProfileForm] = useState({});
-    const [profileImage, setProfileImage] = useState(null);
+    // Profile Edit State - removed since it's now handled in separate Profile component
+    // const [isEditingProfile, setIsEditingProfile] = useState(false);
+    // const [profileForm, setProfileForm] = useState({});
+    // const [profileImage, setProfileImage] = useState(null);
 
     // Menu Item Form State
     const [editingItem, setEditingItem] = useState(null);
@@ -49,7 +51,6 @@ const Dashboard = () => {
         try {
             const restaurantData = await restaurantService.getById(currentUser.uid);
             setRestaurant(restaurantData);
-            setProfileForm(restaurantData || {});
 
             const items = await menuService.getByRestaurant(currentUser.uid);
             setMenuItems(items);
@@ -79,29 +80,6 @@ const Dashboard = () => {
             return null;
         } finally {
             setUploading(false);
-        }
-    };
-
-    const handleProfileUpdate = async (e) => {
-        e.preventDefault();
-        let imageUrl = profileForm.image;
-
-        if (profileImage) {
-            imageUrl = await handleImageUpload(profileImage, `restaurants/${currentUser.uid}/profile`);
-            if (!imageUrl) return;
-        }
-
-        const result = await restaurantService.update(currentUser.uid, {
-            ...profileForm,
-            image: imageUrl
-        });
-
-        if (result.success) {
-            toast.success('Profile updated!');
-            setIsEditingProfile(false);
-            loadRestaurantData();
-        } else {
-            toast.error('Failed to update profile');
         }
     };
 
@@ -242,7 +220,8 @@ const Dashboard = () => {
             {/* Navigation */}
             <nav className="navbar navbar-smartfood navbar-expand-lg navbar-light sticky-top">
                 <div className="container-fluid">
-                    <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none" to="/">
+                    <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none d-flex align-items-center" to="/">
+                        <i className="fas fa-arrow-left me-2 fs-6 opacity-75"></i>
                         Food Express <small className="fs-6 text-muted ms-2">Restaurant</small>
                     </Link>
 
@@ -312,6 +291,13 @@ const Dashboard = () => {
                                         Overview
                                     </button>
                                     <button
+                                        className={`nav-link text-start mb-2 py-3 px-4 rounded-pill transition-all ${activeView === 'profile' ? 'active shadow-sm' : 'text-dark'}`}
+                                        onClick={() => setActiveView('profile')}
+                                    >
+                                        <i className="fas fa-user me-3"></i>
+                                        Profile
+                                    </button>
+                                    <button
                                         className={`nav-link text-start mb-2 py-3 px-4 rounded-pill transition-all ${activeView === 'orders' ? 'active shadow-sm' : 'text-dark'}`}
                                         onClick={() => setActiveView('orders')}
                                     >
@@ -340,109 +326,12 @@ const Dashboard = () => {
                         {/* Overview */}
                         {activeView === 'overview' && (
                             <div className="fade-in">
-                                <div className="welcome-banner mb-4 p-4 rounded-4 bg-white shadow-sm border-start border-4 border-success d-flex justify-content-between align-items-center">
+                                <div className="welcome-banner mb-4 p-4 rounded-4 bg-white shadow-sm border-start border-4 border-success">
                                     <div>
                                         <h2 className="section-title mb-1">Store Dashboard</h2>
                                         <p className="text-muted mb-0">Manage your restaurant performance and orders</p>
                                     </div>
-                                    <button
-                                        className="btn btn-outline-success rounded-pill px-4"
-                                        onClick={() => setIsEditingProfile(!isEditingProfile)}
-                                    >
-                                        <i className="fas fa-cog me-2"></i>
-                                        {isEditingProfile ? 'Close Settings' : 'Store Settings'}
-                                    </button>
                                 </div>
-
-                                {isEditingProfile && (
-                                    <div className="card mb-4 border-0 shadow-sm rounded-4 overflow-hidden">
-                                        <div className="card-header bg-success text-white p-3">
-                                            <h5 className="mb-0">Restaurant Profile</h5>
-                                        </div>
-                                        <div className="card-body p-4 text-dark">
-                                            <form onSubmit={handleProfileUpdate}>
-                                                <div className="row g-3">
-                                                    <div className="col-md-6">
-                                                        <label className="form-label fw-semibold">Restaurant Name</label>
-                                                        <input
-                                                            type="text"
-                                                            className="form-control rounded-3"
-                                                            value={profileForm.name || ''}
-                                                            onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="col-md-6">
-                                                        <label className="form-label fw-semibold">Cuisine Type</label>
-                                                        <input
-                                                            type="text"
-                                                            className="form-control rounded-3"
-                                                            value={profileForm.cuisine || ''}
-                                                            onChange={(e) => setProfileForm({ ...profileForm, cuisine: e.target.value })}
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="col-12">
-                                                        <label className="form-label fw-semibold">Description</label>
-                                                        <textarea
-                                                            className="form-control rounded-3"
-                                                            rows="2"
-                                                            value={profileForm.description || ''}
-                                                            onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="col-12">
-                                                        <label className="form-label fw-semibold">Store Address</label>
-                                                        <textarea
-                                                            className="form-control rounded-3"
-                                                            rows="2"
-                                                            placeholder="e.g. Kality, Addis Ababa, Near Customs"
-                                                            value={profileForm.address || ''}
-                                                            onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="col-md-4">
-                                                        <label className="form-label fw-semibold">Delivery Time</label>
-                                                        <input
-                                                            type="text"
-                                                            className="form-control rounded-3"
-                                                            placeholder="e.g. 30-45 min"
-                                                            value={profileForm.deliveryTime || ''}
-                                                            onChange={(e) => setProfileForm({ ...profileForm, deliveryTime: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div className="col-md-4">
-                                                        <label className="form-label fw-semibold">Delivery Fee (ETB)</label>
-                                                        <input
-                                                            type="number"
-                                                            className="form-control rounded-3"
-                                                            value={profileForm.deliveryFee || ''}
-                                                            onChange={(e) => setProfileForm({ ...profileForm, deliveryFee: Number(e.target.value) })}
-                                                        />
-                                                    </div>
-                                                    <div className="col-md-4">
-                                                        <label className="form-label fw-semibold">Image</label>
-                                                        <input
-                                                            type="file"
-                                                            className="form-control rounded-3"
-                                                            accept="image/*"
-                                                            onChange={(e) => setProfileImage(e.target.files[0])}
-                                                        />
-                                                    </div>
-                                                    <div className="col-12 pt-2">
-                                                        <button type="submit" className="btn btn-success px-5 rounded-pill shadow-sm" disabled={uploading}>
-                                                            {uploading ? (
-                                                                <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>
-                                                            ) : 'Save Store Changes'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                )}
 
                                 <div className="row g-4 mb-4">
                                     <div className="col-md-3">
@@ -499,10 +388,53 @@ const Dashboard = () => {
                             </div>
                         )}
 
+                        {/* Profile */}
+                        {activeView === 'profile' && (
+                            <div>
+                                <h2 className="mb-4">Restaurant Profile</h2>
+                                <Profile />
+                            </div>
+                        )}
+
                         {/* Orders Management */}
                         {activeView === 'orders' && (
                             <div>
-                                <h2 className="mb-4">Order Management</h2>
+                                <div className="d-flex justify-content-between align-items-center mb-4">
+                                    <h2 className="mb-0">Order Management</h2>
+                                    
+                                    {/* Delivery Type Filter */}
+                                    <div className="d-flex gap-2">
+                                        <div className="btn-group" role="group">
+                                            <button 
+                                                className={`btn btn-sm ${deliveryFilter === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                                onClick={() => setDeliveryFilter('all')}
+                                            >
+                                                <i className="fas fa-list me-1"></i>All Orders
+                                                <span className="badge bg-light text-dark ms-1">{orders.length}</span>
+                                            </button>
+
+                                            <button 
+                                                className={`btn btn-sm ${deliveryFilter === 'asap' ? 'btn-warning' : 'btn-outline-warning'}`}
+                                                onClick={() => setDeliveryFilter('asap')}
+                                            >
+                                                <i className="fas fa-bolt me-1"></i>ASAP
+                                                <span className="badge bg-light text-dark ms-1">
+                                                    {orders.filter(order => !order.deliveryType || order.deliveryType === 'asap').length}
+                                                </span>
+                                            </button>
+
+                                            <button 
+                                                className={`btn btn-sm ${deliveryFilter === 'scheduled' ? 'btn-info' : 'btn-outline-info'}`}
+                                                onClick={() => setDeliveryFilter('scheduled')}
+                                            >
+                                                <i className="fas fa-clock me-1"></i>Scheduled
+                                                <span className="badge bg-light text-dark ms-1">
+                                                    {orders.filter(order => order.deliveryType === 'scheduled').length}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                                 {orders.length === 0 ? (
                                     <div className="alert alert-info">
                                         <i className="fas fa-info-circle me-2"></i>
@@ -510,7 +442,12 @@ const Dashboard = () => {
                                     </div>
                                 ) : (
                                     <div className="row g-3">
-                                        {orders.map((order) => (
+                                        {orders.filter(order => {
+                                            if (deliveryFilter === 'all') return true;
+                                            if (deliveryFilter === 'asap') return !order.deliveryType || order.deliveryType === 'asap';
+                                            if (deliveryFilter === 'scheduled') return order.deliveryType === 'scheduled';
+                                            return true;
+                                        }).map((order) => (
                                             <div key={order.id} className="col-12">
                                                 <div className="card">
                                                     <div className="card-body">
@@ -519,6 +456,60 @@ const Dashboard = () => {
                                                                 <h5>{order.orderNumber}</h5>
                                                                 <p className="mb-1"><strong>Customer:</strong> {order.customerName || 'Customer'}</p>
                                                                 <p className="mb-1"><strong>Address:</strong> {order.deliveryAddress}</p>
+                                                                
+                                                                {/* Delivery Type and Scheduled Time Information */}
+                                                                <div className="mb-2">
+                                                                    {order.deliveryType === 'scheduled' ? (
+                                                                        <div className="d-flex align-items-center mb-1">
+                                                                            <i className="fas fa-clock text-primary me-2"></i>
+                                                                            <strong className="text-primary">Scheduled Delivery:</strong>
+                                                                            <span className="ms-2">
+                                                                                {order.scheduledTime ? new Date(order.scheduledTime).toLocaleString('en-US', {
+                                                                                    weekday: 'short',
+                                                                                    month: 'short', 
+                                                                                    day: 'numeric',
+                                                                                    hour: '2-digit',
+                                                                                    minute: '2-digit'
+                                                                                }) : 'Time not specified'}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="d-flex align-items-center mb-1">
+                                                                            <i className="fas fa-bolt text-warning me-2"></i>
+                                                                            <strong className="text-warning">ASAP Delivery</strong>
+                                                                            <span className="ms-2 text-muted small">
+                                                                                (Est. {restaurant?.deliveryTime || '30-45 min'})
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {/* Show time until scheduled delivery for scheduled orders */}
+                                                                    {order.deliveryType === 'scheduled' && order.scheduledTime && (
+                                                                        <div className="small text-muted">
+                                                                            {(() => {
+                                                                                const now = new Date();
+                                                                                const scheduled = new Date(order.scheduledTime);
+                                                                                const timeDiff = scheduled.getTime() - now.getTime();
+                                                                                
+                                                                                if (timeDiff > 0) {
+                                                                                    const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+                                                                                    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                                                                                    
+                                                                                    if (hours > 0) {
+                                                                                        return `⏰ Scheduled in ${hours}h ${minutes}m`;
+                                                                                    } else if (minutes > 0) {
+                                                                                        return `⏰ Scheduled in ${minutes} minutes`;
+                                                                                    } else {
+                                                                                        return `⏰ Scheduled time reached`;
+                                                                                    }
+                                                                                } else {
+                                                                                    return `⏰ Scheduled time passed`;
+                                                                                }
+                                                                            })()}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
                                                                 <p className="mb-1"><strong>Items:</strong></p>
                                                                 <ul>
                                                                     {order.items?.map((item, idx) => (
@@ -530,6 +521,16 @@ const Dashboard = () => {
                                                                 <p className="mb-0"><strong>Total:</strong> {order.total?.toFixed(2)} ETB</p>
                                                             </div>
                                                             <div className="text-end">
+                                                                {/* Delivery Type Badge */}
+                                                                {order.deliveryType === 'scheduled' && (
+                                                                    <div className="mb-2">
+                                                                        <span className="badge bg-info text-dark mb-1 d-block">
+                                                                            <i className="fas fa-clock me-1"></i>
+                                                                            SCHEDULED
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                
                                                                 <span className={`badge bg-${order.status === 'delivered' ? 'success' : order.status === 'cancelled' ? 'danger' : 'warning'} mb-2 d-block`}>
                                                                     {order.status.toUpperCase()}
                                                                 </span>

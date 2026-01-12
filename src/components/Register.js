@@ -25,6 +25,8 @@ const Register = () => {
         licenseNumber: ''
     });
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState(null);
     const [addressSuggestions, setAddressSuggestions] = useState([]);
     const [isDetectingLocation, setIsDetectingLocation] = useState(false);
@@ -342,14 +344,24 @@ const Register = () => {
                                     <div className="row">
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label">Password</label>
-                                            <input
-                                                type="password"
-                                                className="form-control"
-                                                name="password"
-                                                value={formData.password}
-                                                onChange={handleChange}
-                                                required
-                                            />
+                                            <div className="input-group">
+                                                <input
+                                                    type={showPassword ? "text" : "password"}
+                                                    className="form-control"
+                                                    name="password"
+                                                    value={formData.password}
+                                                    onChange={handleChange}
+                                                    required
+                                                />
+                                                <button
+                                                    className="btn btn-outline-secondary border-start-0"
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                                                >
+                                                    <i className={`fas fa-eye${showPassword ? '-slash' : ''}`}></i>
+                                                </button>
+                                            </div>
 
                                             {/* Password Strength Meter */}
                                             {formData.password && passwordStrength && (
@@ -408,14 +420,24 @@ const Register = () => {
 
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label">Confirm Password</label>
-                                            <input
-                                                type="password"
-                                                className="form-control"
-                                                name="confirmPassword"
-                                                value={formData.confirmPassword}
-                                                onChange={handleChange}
-                                                required
-                                            />
+                                            <div className="input-group">
+                                                <input
+                                                    type={showConfirmPassword ? "text" : "password"}
+                                                    className="form-control"
+                                                    name="confirmPassword"
+                                                    value={formData.confirmPassword}
+                                                    onChange={handleChange}
+                                                    required
+                                                />
+                                                <button
+                                                    className="btn btn-outline-secondary border-start-0"
+                                                    type="button"
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                                                >
+                                                    <i className={`fas fa-eye${showConfirmPassword ? '-slash' : ''}`}></i>
+                                                </button>
+                                            </div>
                                             {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                                                 <small className="text-danger">
                                                     <i className="fas fa-times me-1"></i>

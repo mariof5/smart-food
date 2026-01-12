@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { disputeService, refundService, adminService } from '../../services/databaseService';
 import { demoService } from '../../services/demoService';
 import { toast } from 'react-toastify';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import ThemeToggle from '../UI/ThemeToggle';
+import Profile from './Profile';
 
 const Dashboard = () => {
     const { currentUser, userData, logout } = useAuth();
@@ -143,7 +145,7 @@ const Dashboard = () => {
     // Filter users based on search and role
     const filteredUsers = users.filter(user => {
         const matchesSearch = user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+            user.email?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesRole = roleFilter === 'all' || user.role === roleFilter;
         return matchesSearch && matchesRole;
     });
@@ -172,10 +174,11 @@ const Dashboard = () => {
             {/* Navigation */}
             <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
                 <div className="container-fluid">
-                    <span className="navbar-brand">
+                    <Link className="navbar-brand d-flex align-items-center text-decoration-none" to="/">
+                        <i className="fas fa-arrow-left me-2 fs-6 opacity-75"></i>
                         <i className="fas fa-user-shield me-2"></i>
                         Admin Dashboard
-                    </span>
+                    </Link>
 
                     <div className="ms-auto d-flex align-items-center gap-3">
                         <ThemeToggle size="sm" />
@@ -202,6 +205,13 @@ const Dashboard = () => {
                             >
                                 <i className="fas fa-chart-line me-2"></i>
                                 Overview
+                            </button>
+                            <button
+                                className={`list-group-item list-group-item-action ${activeView === 'profile' ? 'active' : ''}`}
+                                onClick={() => setActiveView('profile')}
+                            >
+                                <i className="fas fa-user me-2"></i>
+                                Profile
                             </button>
                             <button
                                 className={`list-group-item list-group-item-action ${activeView === 'users' ? 'active' : ''}`}
@@ -388,6 +398,14 @@ const Dashboard = () => {
                             </div>
                         )}
 
+                        {/* Profile */}
+                        {activeView === 'profile' && (
+                            <div>
+                                <h2 className="mb-4">Admin Profile</h2>
+                                <Profile />
+                            </div>
+                        )}
+
                         {/* User Management */}
                         {activeView === 'users' && (
                             <div>
@@ -444,11 +462,10 @@ const Dashboard = () => {
                                                             </td>
                                                             <td>{user.email}</td>
                                                             <td>
-                                                                <span className={`badge bg-${
-                                                                    user.role === 'admin' ? 'danger' :
-                                                                    user.role === 'restaurant' ? 'success' :
-                                                                    user.role === 'delivery' ? 'warning' : 'primary'
-                                                                }`}>
+                                                                <span className={`badge bg-${user.role === 'admin' ? 'danger' :
+                                                                        user.role === 'restaurant' ? 'success' :
+                                                                            user.role === 'delivery' ? 'warning' : 'primary'
+                                                                    }`}>
                                                                     {user.role}
                                                                 </span>
                                                             </td>
@@ -514,6 +531,7 @@ const Dashboard = () => {
                                                         <th>Order #</th>
                                                         <th>Customer</th>
                                                         <th>Restaurant</th>
+                                                        <th>Delivery Type</th>
                                                         <th>Total</th>
                                                         <th>Status</th>
                                                         <th>Date</th>
@@ -528,14 +546,38 @@ const Dashboard = () => {
                                                             </td>
                                                             <td>{order.customerName || 'Unknown'}</td>
                                                             <td>{order.restaurantName || 'Unknown'}</td>
+                                                            <td>
+                                                                {order.deliveryType === 'scheduled' ? (
+                                                                    <div>
+                                                                        <span className="badge bg-info text-dark">
+                                                                            <i className="fas fa-clock me-1"></i>
+                                                                            Scheduled
+                                                                        </span>
+                                                                        {order.scheduledTime && (
+                                                                            <div className="small text-muted mt-1">
+                                                                                {new Date(order.scheduledTime).toLocaleString('en-US', {
+                                                                                    month: 'short',
+                                                                                    day: 'numeric',
+                                                                                    hour: '2-digit',
+                                                                                    minute: '2-digit'
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="badge bg-warning text-dark">
+                                                                        <i className="fas fa-bolt me-1"></i>
+                                                                        ASAP
+                                                                    </span>
+                                                                )}
+                                                            </td>
                                                             <td>{formatCurrency(order.total || 0)}</td>
                                                             <td>
-                                                                <span className={`badge bg-${
-                                                                    order.status === 'delivered' ? 'success' :
-                                                                    order.status === 'cancelled' ? 'danger' :
-                                                                    order.status === 'preparing' ? 'warning' :
-                                                                    order.status === 'ready' ? 'info' : 'primary'
-                                                                }`}>
+                                                                <span className={`badge bg-${order.status === 'delivered' ? 'success' :
+                                                                        order.status === 'cancelled' ? 'danger' :
+                                                                            order.status === 'preparing' ? 'warning' :
+                                                                                order.status === 'ready' ? 'info' : 'primary'
+                                                                    }`}>
                                                                     {order.status}
                                                                 </span>
                                                             </td>

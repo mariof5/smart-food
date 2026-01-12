@@ -54,12 +54,20 @@ export const AuthProvider = ({ children }) => {
     return await registerUser(email, password, data);
   };
 
+  const refreshUserData = async () => {
+    if (currentUser?.uid) {
+      const data = await getCurrentUserData(currentUser.uid);
+      setUserData(data);
+    }
+  };
+
   const value = {
     currentUser,
     userData,
     login,
     logout,
     register,
+    refreshUserData,
     loading
   };
 

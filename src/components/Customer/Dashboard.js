@@ -7,6 +7,7 @@ import RestaurantMenu from './RestaurantMenu';
 import OrderManagement from './OrderManagement';
 import OrderTracking from './OrderTracking';
 import RatingModal from './RatingModal';
+import Profile from './Profile';
 import { orderService } from '../../services/databaseService';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -148,7 +149,9 @@ const Dashboard = () => {
             case 'orders':
                 return <OrderManagement onTrackOrder={handleTrackOrder} />;
             case 'tracking':
-                return <OrderTracking orderId={trackingOrderId} />;
+                return <OrderTracking orderId={trackingOrderId} onBack={() => setActiveView('orders')} />;
+            case 'profile':
+                return <Profile />;
             default:
                 return <RestaurantBrowser onSelectRestaurant={handleSelectRestaurant} />;
         }
@@ -159,7 +162,8 @@ const Dashboard = () => {
             {/* Navigation Bar */}
             <nav className="navbar navbar-smartfood navbar-expand-lg navbar-light sticky-top">
                 <div className="container-fluid">
-                    <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none" to="/">
+                    <Link className="navbar-brand-smartfood fw-bold ethiopia-flag text-decoration-none d-flex align-items-center" to="/">
+                        <i className="fas fa-arrow-left me-2 fs-6 opacity-75"></i>
                         Food Express
                     </Link>
 
@@ -184,7 +188,16 @@ const Dashboard = () => {
                                     data-bs-toggle="dropdown"
                                 >
                                     <div className="user-avatar me-2">
-                                        <i className="fas fa-user-circle fa-lg text-primary"></i>
+                                        {userData?.profilePicture ? (
+                                            <img
+                                                src={userData.profilePicture}
+                                                alt="Profile"
+                                                className="rounded-circle"
+                                                style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                                            />
+                                        ) : (
+                                            <i className="fas fa-user-circle fa-lg text-primary"></i>
+                                        )}
                                     </div>
                                     <span className="fw-semibold text-dark">{userData?.name || 'User'}</span>
                                 </a>
@@ -194,6 +207,15 @@ const Dashboard = () => {
                                         <div className="fw-bold text-dark">{currentUser?.email}</div>
                                     </li>
                                     <li><hr className="dropdown-divider" /></li>
+                                    <li>
+                                        <button
+                                            className="dropdown-item py-2"
+                                            onClick={() => setActiveView('profile')}
+                                        >
+                                            <i className="fas fa-user-cog me-2 text-primary"></i>
+                                            Account Settings
+                                        </button>
+                                    </li>
                                     <li>
                                         <button className="dropdown-item py-2" onClick={handleLogout}>
                                             <i className="fas fa-sign-out-alt me-2 text-danger"></i>
@@ -289,11 +311,18 @@ const Dashboard = () => {
                                         My Orders
                                     </button>
                                     <button
-                                        className={`nav-link text-start py-3 px-4 rounded-pill transition-all ${activeView === 'tracking' ? 'active shadow-sm' : 'text-dark'}`}
+                                        className={`nav-link text-start mb-2 py-3 px-4 rounded-pill transition-all ${activeView === 'tracking' ? 'active shadow-sm' : 'text-dark'}`}
                                         onClick={() => setActiveView('tracking')}
                                     >
                                         <i className="fas fa-map-marker-alt me-3"></i>
                                         Tracking
+                                    </button>
+                                    <button
+                                        className={`nav-link text-start py-3 px-4 rounded-pill transition-all ${activeView === 'profile' ? 'active shadow-sm' : 'text-dark'}`}
+                                        onClick={() => setActiveView('profile')}
+                                    >
+                                        <i className="fas fa-user-cog me-3"></i>
+                                        Profile
                                     </button>
                                 </div>
                             </div>
