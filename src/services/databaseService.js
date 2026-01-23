@@ -217,10 +217,14 @@ export const orderService = {
   // Create new order
   create: async (orderData) => {
     try {
+      const ADMIN_COMMISSION_RATE = 0.03; // 3%
+      const adminCommission = (orderData.subtotal || 0) * ADMIN_COMMISSION_RATE;
+      
       const orderNumber = '#' + Math.floor(Math.random() * 10000);
       const docRef = await addDoc(collection(db, COLLECTIONS.ORDERS), {
         orderNumber,
         ...orderData,
+        adminCommission,
         status: 'placed',
         canCancel: true,
         canModify: true,
@@ -740,6 +744,8 @@ export const deliveryService = {
   // Get driver stats
   getDriverStats: async (driverId) => {
     try {
+      const ADMIN_COMMISSION_RATE = 0.03; // 3%
+      
       const querySnapshot = await getDocs(
         query(
           collection(db, COLLECTIONS.ORDERS),
@@ -751,8 +757,12 @@ export const deliveryService = {
       const deliveredOrders = querySnapshot.docs.map(doc => doc.data());
       const totalDeliveries = deliveredOrders.length;
 
-      // Calculate earnings (assuming 80% of delivery fee goes to driver)
-      const earnings = deliveredOrders.reduce((sum, order) => sum + (order.deliveryFee * 0.8), 0);
+      // Calculate earnings (80% of delivery fee minus 3% admin commission)
+      const earnings = deliveredOrders.reduce((sum, order) => {
+        const driverShare = order.deliveryFee * 0.8; // Driver gets 80% of delivery fee
+        const adminCommission = driverShare * ADMIN_COMMISSION_RATE; // 3% commission on driver's share
+        return sum + (driverShare - adminCommission);
+      }, 0);
 
       // Calculate today's deliveries
       const today = new Date();
@@ -896,6 +906,19 @@ export const adminService = {
       const ordersData = orders.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const restaurantsData = restaurants.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+      // Calculate commission revenue from orders (3% of subtotal)
+      const commissionRevenue = ordersData.reduce((sum, order) => {
+        return sum + (order.adminCommission || 0);
+      }, 0);
+
+      // Calculate signup fee revenue from restaurants
+      const signupFeeRevenue = restaurantsData.reduce((sum, restaurant) => {
+        return sum + (restaurant.signupFeePaid || 0);
+      }, 0);
+
+      // Calculate total platform revenue
+      const totalPlatformRevenue = commissionRevenue + signupFeeRevenue;
+
       // Calculate popular items
       const itemCount = {};
       ordersData.forEach(order => {
@@ -915,6 +938,9 @@ export const adminService = {
         activeUsers: usersData.filter(u => u.isActive && !u.isDeleted).length,
         totalOrders: ordersData.length,
         totalRevenue: ordersData.reduce((sum, order) => sum + (order.total || 0), 0),
+        commissionRevenue,
+        signupFeeRevenue,
+        totalPlatformRevenue,
         activeRestaurants: restaurantsData.filter(r => r.isActive).length,
         totalRestaurants: restaurantsData.length,
         popularItems,
@@ -932,6 +958,9 @@ export const adminService = {
         activeUsers: 0,
         totalOrders: 0,
         totalRevenue: 0,
+        commissionRevenue: 0,
+        signupFeeRevenue: 0,
+        totalPlatformRevenue: 0,
         activeRestaurants: 0,
         totalRestaurants: 0,
         popularItems: [],

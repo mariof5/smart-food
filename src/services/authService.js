@@ -21,6 +21,12 @@ export const USER_ROLES = {
   ADMIN: 'admin'
 };
 
+// Platform Constants
+export const PLATFORM_SETTINGS = {
+  RESTAURANT_SIGNUP_FEE: 5000,
+  DRIVER_COMMISSION_PERCENT: 0.03 // 3%
+};
+
 // Register new user
 export const registerUser = async (email, password, userData) => {
   try {
@@ -58,9 +64,22 @@ export const loginUser = async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Get user data from Firestore
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    const userData = userDoc.exists() ? userDoc.data() : null;
+    let userData = null;
+    try {
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      userData = userDoc.exists() ? userDoc.data() : null;
+    } catch (fsError) {
+      console.error('Firestore fetch error during login:', fsError);
+      // If Firestore fails (e.g. permission denied) but Auth succeeded, 
+      // we still return the user but with a warning or null userData
+      if (fsError.code === 'permission-denied') {
+        return {
+          success: false,
+          error: "Permission denied while fetching profile. Please check your Firestore Security Rules."
+        };
+      }
+    }
 
     return {
       success: true,
@@ -110,12 +129,18 @@ export const hasRole = (userData, requiredRole) => {
 // Register restaurant owner
 export const registerRestaurant = async (email, password, restaurantData) => {
   try {
+    const SIGNUP_FEE = 5000; // ETB
+
     const result = await registerUser(email, password, {
       name: restaurantData.ownerName,
       role: USER_ROLES.RESTAURANT
     });
 
     if (result.success) {
+      // Determine if account should be active based on payment status
+      const isActive = restaurantData.signupFeeStatus === 'paid';
+      const signupFeePaid = restaurantData.signupFeeStatus === 'paid' ? SIGNUP_FEE : 0;
+
       // Create restaurant document
       await setDoc(doc(db, 'restaurants', result.user.uid), {
         ownerId: result.user.uid,
@@ -127,7 +152,12 @@ export const registerRestaurant = async (email, password, restaurantData) => {
         deliveryTime: restaurantData.deliveryTime || '30-45 min',
         rating: 0,
         reviews: 0,
-        isActive: true,
+        isActive: isActive,
+        signupFeeStatus: restaurantData.signupFeeStatus || 'pending',
+        signupFeePaid: signupFeePaid,
+        paymentMethod: restaurantData.paymentMethod || 'cash',
+        signupFeeDate: isActive ? new Date().toISOString() : null,
+        approvalStatus: isActive ? 'approved' : 'pending',
         createdAt: new Date().toISOString()
       });
     }

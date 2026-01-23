@@ -208,6 +208,36 @@ body {
     margin-left: auto;
     margin-right: auto;
     box-shadow: 0 2px 8px rgba(255, 107, 53, 0.08);
+    transition: all 0.4s ease;
+}
+
+.feature-card {
+    padding: 30px 20px;
+    border-radius: 16px;
+    transition: all 0.4s ease;
+    cursor: pointer;
+    height: 100%;
+}
+
+.feature-card-hover {
+    transform: translateY(-10px) scale(1.05);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 107, 53, 0.1);
+}
+
+.feature-card-hover .feature-icon {
+    transform: scale(1.15) rotate(5deg);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.feature-card-hover h4 {
+    color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.feature-card-hover p {
+    color: #555 !important;
 }
 
 .tracking-bar {
@@ -225,6 +255,18 @@ body {
     position: relative;
     min-width: 120px;
     cursor: pointer;
+    transition: transform 0.3s ease;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+.tracking-step:hover {
+    transform: scale(1.05);
+}
+
+.tracking-step-hovered {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
 .tracking-step .step-icon {
@@ -239,7 +281,12 @@ body {
     margin-bottom: 10px;
     z-index: 2;
     border: 2px solid #eee;
-    transition: background 0.3s, color 0.3s, border 0.3s;
+    transition: all 0.3s ease;
+}
+
+.tracking-step:hover .step-icon {
+    transform: scale(1.2) rotate(10deg);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
 .tracking-step.active .step-icon {
@@ -247,6 +294,16 @@ body {
     color: #fff;
     border: 2px solid var(--primary);
     box-shadow: 0 2px 8px rgba(255, 107, 53, 0.13);
+}
+
+.tracking-step h6 {
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.tracking-step:hover h6 {
+    transform: translateY(-3px);
+    font-weight: 700;
 }
 
 .tracking-step .step-line {
@@ -260,6 +317,38 @@ body {
     transform: translateX(-50%);
 }
 
+.step-description {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.98);
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #666;
+    text-align: center;
+    width: 200px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    opacity: 0;
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
 .order-card {
     border-left: 5px solid var(--primary);
     background: #fffdfa;
@@ -269,6 +358,36 @@ body {
 .recommendation-card {
     background: linear-gradient(120deg, #fff8f5 60%, #ffe0d4 100%);
     border: 1px solid #ffe0d4;
+}
+
+.how-it-works-card {
+    transition: all 0.4s ease;
+    border: 2px solid transparent;
+}
+
+.how-it-works-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(255, 107, 53, 0.2);
+    border-color: var(--primary);
+}
+
+.how-it-works-card .card-title {
+    transition: all 0.3s ease;
+}
+
+.how-it-works-card:hover .card-title {
+    color: var(--primary);
+    transform: translateX(5px);
+}
+
+.mini-food-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.mini-food-card:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
 .map-container {
@@ -338,4 +457,74 @@ body {
 .badge-delivered {
     background: #d4edda;
     color: #155724;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+    .tracking-step {
+        margin-bottom: 60px;
+    }
+
+    .step-description {
+        width: 180px;
+        font-size: 0.8rem;
+        padding: 10px 12px;
+    }
+
+    .feature-card {
+        margin-bottom: 20px;
+    }
+
+    /* Enable tap/touch for mobile */
+    .feature-card:active {
+        transform: translateY(-10px) scale(1.05);
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-card:active .feature-icon {
+        transform: scale(1.15) rotate(5deg);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+}
+
+/* Delivery Marker Animation */
+.delivery-marker {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: var(--primary);
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(255, 107, 53, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 107, 53, 0);
+    }
+}
+
+/* Section Background Enhancement */
+#how-it-works {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    position: relative;
+}
+
+#how-it-works::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><circle cx="30" cy="30" r="2" fill="%23ff6b35" opacity="0.1"/></svg>');
+    pointer-events: none;
 }

@@ -10,14 +10,14 @@ const HowItWorks = () => {
 
                 <div className="row">
                     <div className="col-md-6 mb-4">
-                        <div className="card h-100 recommendation-card">
+                        <div className="card h-100 recommendation-card how-it-works-card">
                             <div className="card-body">
-                                <h4 className="card-title">Smart Recommendations</h4>
+                                <h4 className="card-title"><i className="fas fa-lightbulb me-2 text-warning"></i>Smart Recommendations</h4>
                                 <p>Our AI-powered recommendation system suggests dishes you'll love based on your previous
                                     orders and preferences.</p>
                                 <div className="row">
                                     <div className="col-6 mb-3">
-                                        <div className="card">
+                                        <div className="card mini-food-card">
                                             <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
                                                 className="card-img-top" alt="Recommended" />
                                             <div className="card-body">
@@ -28,8 +28,8 @@ const HowItWorks = () => {
                                         </div>
                                     </div>
                                     <div className="col-6 mb-3">
-                                        <div className="card">
-                                            <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                                        <div className="card mini-food-card">
+                                            <img src="/images/restaurants/habesha-kitchen/menu/doro_wet.png"
                                                 className="card-img-top" alt="Recommended" />
                                             <div className="card-body">
                                                 <h6 className="card-title">ዶሮ ወጥ</h6>
@@ -43,9 +43,9 @@ const HowItWorks = () => {
                         </div>
                     </div>
                     <div className="col-md-6 mb-4">
-                        <div className="card h-100">
+                        <div className="card h-100 how-it-works-card">
                             <div className="card-body">
-                                <h4 className="card-title">Order Tracking</h4>
+                                <h4 className="card-title"><i className="fas fa-map-marker-alt me-2 text-success"></i>Order Tracking</h4>
                                 <div className="map-container mb-3">
                                     <div id="deliveryMap"
                                         className="w-100 h-100 d-flex align-items-center justify-content-center bg-light position-relative">

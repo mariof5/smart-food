@@ -326,6 +326,39 @@ const Dashboard = () => {
                                     </div>
                                 </div>
 
+                                {/* Platform Revenue Breakdown */}
+                                <div className="row mb-4">
+                                    <div className="col-md-4">
+                                        <div className="card border-success">
+                                            <div className="card-body text-center">
+                                                <i className="fas fa-hand-holding-usd fa-2x text-success mb-2"></i>
+                                                <h3 className="mb-0">{formatCurrency(stats.totalPlatformRevenue || 0)}</h3>
+                                                <small className="text-muted">Platform Revenue</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-md-4">
+                                        <div className="card border-primary">
+                                            <div className="card-body text-center">
+                                                <i className="fas fa-percentage fa-2x text-primary mb-2"></i>
+                                                <h3 className="mb-0">{formatCurrency(stats.commissionRevenue || 0)}</h3>
+                                                <small className="text-muted">Commission Revenue (3%)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-md-4">
+                                        <div className="card border-info">
+                                            <div className="card-body text-center">
+                                                <i className="fas fa-file-invoice-dollar fa-2x text-info mb-2"></i>
+                                                <h3 className="mb-0">{formatCurrency(stats.signupFeeRevenue || 0)}</h3>
+                                                <small className="text-muted">Signup Fee Revenue</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* User Distribution */}
                                 <div className="row mb-4">
                                     <div className="col-md-6">

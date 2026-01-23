@@ -22,7 +22,9 @@ const Register = () => {
         cuisine: '',
         // Delivery specific
         vehicleType: 'motorcycle',
-        licenseNumber: ''
+        licenseNumber: '',
+        // Payment specific
+        paymentMethod: 'chapa'
     });
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +32,7 @@ const Register = () => {
     const [passwordStrength, setPasswordStrength] = useState(null);
     const [addressSuggestions, setAddressSuggestions] = useState([]);
     const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+    const [showPaymentSection, setShowPaymentSection] = useState(false);
     const { register } = useAuth();
     const navigate = useNavigate();
 
@@ -101,14 +104,28 @@ const Register = () => {
             let result;
 
             if (userType === USER_ROLES.RESTAURANT) {
+                // Determine signup fee status based on payment method
+                const signupFeeStatus = formData.paymentMethod === 'chapa' ? 'paid' : 'pending';
+                
                 result = await registerRestaurant(formData.email, formData.password, {
                     ownerName: formData.name,
                     name: formData.restaurantName,
                     description: formData.description,
                     cuisine: formData.cuisine,
                     address: formData.address,
-                    phone: formData.phone
+                    phone: formData.phone,
+                    signupFeeStatus,
+                    paymentMethod: formData.paymentMethod
                 });
+
+                if (result.success) {
+                    if (formData.paymentMethod === 'cash') {
+                        toast.success('Registration submitted! Your account is pending approval after payment verification.');
+                    } else {
+                        toast.success('Registration successful! Please login.');
+                    }
+                    navigate('/login');
+                }
             } else if (userType === USER_ROLES.DELIVERY) {
                 result = await registerDelivery(formData.email, formData.password, {
                     name: formData.name,
@@ -116,6 +133,11 @@ const Register = () => {
                     vehicleType: formData.vehicleType,
                     licenseNumber: formData.licenseNumber
                 });
+
+                if (result.success) {
+                    toast.success('Registration successful! Please login.');
+                    navigate('/login');
+                }
             } else {
                 result = await register(formData.email, formData.password, {
                     name: formData.name,
@@ -123,12 +145,14 @@ const Register = () => {
                     address: formData.address,
                     role: userType
                 });
+
+                if (result.success) {
+                    toast.success('Registration successful! Please login.');
+                    navigate('/login');
+                }
             }
 
-            if (result.success) {
-                toast.success('Registration successful! Please login.');
-                navigate('/login');
-            } else {
+            if (!result.success) {
                 toast.error(result.error || 'Registration failed');
             }
         } catch (error) {
@@ -337,6 +361,97 @@ const Register = () => {
                                                     ))}
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {/* Restaurant Payment Section */}
+                                    {userType === USER_ROLES.RESTAURANT && (
+                                        <div className="mb-4">
+                                            <div className="card border-primary">
+                                                <div className="card-header bg-primary text-white">
+                                                    <h6 className="mb-0">
+                                                        <i className="fas fa-credit-card me-2"></i>
+                                                        Payment Details - Signup Fee
+                                                    </h6>
+                                                </div>
+                                                <div className="card-body">
+                                                    <div className="alert alert-info mb-3">
+                                                        <div className="d-flex align-items-center">
+                                                            <i className="fas fa-info-circle fa-2x me-3"></i>
+                                                            <div>
+                                                                <strong>Registration Fee: 5,000 ETB</strong>
+                                                                <p className="mb-0 small">This one-time fee grants you access to our platform and customer base.</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mb-3">
+                                                        <label className="form-label fw-bold">Select Payment Method</label>
+                                                        
+                                                        <div className="form-check mb-2 p-3 border rounded">
+                                                            <input
+                                                                className="form-check-input"
+                                                                type="radio"
+                                                                name="paymentMethod"
+                                                                id="chapaPayment"
+                                                                value="chapa"
+                                                                checked={formData.paymentMethod === 'chapa'}
+                                                                onChange={handleChange}
+                                                            />
+                                                            <label className="form-check-label w-100" htmlFor="chapaPayment">
+                                                                <div className="d-flex justify-content-between align-items-center">
+                                                                    <div>
+                                                                        <strong>Pay with Chapa</strong>
+                                                                        <p className="mb-0 small text-muted">Instant approval - Pay securely online</p>
+                                                                    </div>
+                                                                    <i className="fas fa-credit-card fa-2x text-primary"></i>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+
+                                                        <div className="form-check p-3 border rounded">
+                                                            <input
+                                                                className="form-check-input"
+                                                                type="radio"
+                                                                name="paymentMethod"
+                                                                id="cashPayment"
+                                                                value="cash"
+                                                                checked={formData.paymentMethod === 'cash'}
+                                                                onChange={handleChange}
+                                                            />
+                                                            <label className="form-check-label w-100" htmlFor="cashPayment">
+                                                                <div className="d-flex justify-content-between align-items-center">
+                                                                    <div>
+                                                                        <strong>Cash / Bank Transfer</strong>
+                                                                        <p className="mb-0 small text-muted">Pending approval - Manual verification required</p>
+                                                                    </div>
+                                                                    <i className="fas fa-money-bill-wave fa-2x text-success"></i>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    {formData.paymentMethod === 'cash' && (
+                                                        <div className="alert alert-warning">
+                                                            <strong><i className="fas fa-exclamation-triangle me-2"></i>Important:</strong>
+                                                            <p className="mb-2">Your account will be pending approval until payment is verified.</p>
+                                                            <p className="mb-0 small">
+                                                                <strong>Bank Details:</strong><br />
+                                                                Bank: Commercial Bank of Ethiopia<br />
+                                                                Account: 1000123456789<br />
+                                                                Account Name: Food Express Platform
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {formData.paymentMethod === 'chapa' && (
+                                                        <div className="alert alert-success">
+                                                            <i className="fas fa-check-circle me-2"></i>
+                                                            You will be redirected to Chapa payment gateway after registration.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
 

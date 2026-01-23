@@ -108,7 +108,7 @@ export const restaurantMenus = {
             desc: "Spicy Ethiopian chicken stew with boiled eggs.",
             price: 180,
             category: "ethiopian",
-            img: "https://images.unsplash.com/photo-1554679665-f5537f187268?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+            img: "/images/restaurants/habesha-kitchen/menu/doro_wet.png"
         },
         {
             name: "እንጀራ ኮምቦ",

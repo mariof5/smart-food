@@ -17,7 +17,7 @@ const Footer = () => {
                             <a href="#" className="text-white"><i className="fab fa-linkedin-in fa-lg"></i></a>
                         </div>
                     </div>
-                    <div className="col-md-2 mb-4">
+                    <div className="col-md-4 mb-4">
                         <h5 className="mb-4">Quick Links</h5>
                         <ul className="list-unstyled">
                             <li className="mb-2"><Link to="/" className="text-white text-decoration-none">Home</Link></li>
@@ -25,7 +25,7 @@ const Footer = () => {
                             <li className="mb-2"><a href="#how-it-works" className="text-white text-decoration-none">How It Works</a></li>
                         </ul>
                     </div>
-                    <div className="col-md-3 mb-4">
+                    <div className="col-md-4 mb-4">
                         <h5 className="mb-4">Cities</h5>
                         <ul className="list-unstyled">
                             <li className="mb-2"><a href="#" className="text-white text-decoration-none">Addis Ababa</a></li>
@@ -35,25 +35,11 @@ const Footer = () => {
                             <li><a href="#" className="text-white text-decoration-none">Mekelle</a></li>
                         </ul>
                     </div>
-                    <div className="col-md-3 mb-4">
-                        <h5 className="mb-4">Download Our App</h5>
-                        <p>Get the best experience with our mobile app</p>
-                        <div className="d-flex">
-                            <a href="#" className="me-2">
-                                <img src="https://via.placeholder.com/120x40/555/fff?text=App+Store" alt="App Store"
-                                    className="img-fluid" />
-                            </a>
-                            <a href="#">
-                                <img src="https://via.placeholder.com/120x40/555/fff?text=Google+Play" alt="Google Play"
-                                    className="img-fluid" />
-                            </a>
-                        </div>
-                    </div>
                 </div>
                 <hr className="my-4 bg-light" />
                 <div className="row">
                     <div className="col-md-6">
-                        <p>&copy; 2025 Online Food Ordering & Scheduled Delivery System. All rights reserved.</p>
+                        <p>&copy; {new Date().getFullYear()} Online Food Ordering & Scheduled Delivery System. All rights reserved.</p>
                     </div>
                     <div className="col-md-6 text-md-end">
                         <p>Developed by Amde Worku, Akal Belete, Kidus H/Mariam</p>
