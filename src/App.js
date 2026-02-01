@@ -16,6 +16,7 @@ import DeliveryDashboard from './components/Delivery/Dashboard';
 import AdminDashboard from './components/Admin/Dashboard';
 import Unauthorized from './components/Unauthorized';
 import PaymentResult from './components/Customer/PaymentResult';
+import RestaurantPaymentResult from './components/Restaurant/RestaurantPaymentResult';
 
 // Styles
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -40,6 +41,10 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
 
+              {/* Payment Result Routes */}
+              <Route path="/payment/callback" element={<PaymentResult />} />
+              <Route path="/restaurant-payment-result" element={<RestaurantPaymentResult />} />
+
               {/* Protected Routes */}
               <Route
                 path="/customer/*"
@@ -49,8 +54,6 @@ function App() {
                   </CustomerRoute>
                 }
               />
-
-              <Route path="/payment/callback" element={<PaymentResult />} />
 
               <Route
                 path="/restaurant/*"

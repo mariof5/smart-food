@@ -219,7 +219,7 @@ export const orderService = {
     try {
       const ADMIN_COMMISSION_RATE = 0.03; // 3%
       const adminCommission = (orderData.subtotal || 0) * ADMIN_COMMISSION_RATE;
-      
+
       const orderNumber = '#' + Math.floor(Math.random() * 10000);
       const docRef = await addDoc(collection(db, COLLECTIONS.ORDERS), {
         orderNumber,
@@ -397,7 +397,7 @@ export const orderService = {
       if (['preparing', 'ready', 'picked'].includes(status)) {
         updates.canCancel = false;
       }
-      
+
       if (['ready', 'picked', 'delivered'].includes(status)) {
         updates.canModify = false;
       }
@@ -745,7 +745,7 @@ export const deliveryService = {
   getDriverStats: async (driverId) => {
     try {
       const ADMIN_COMMISSION_RATE = 0.03; // 3%
-      
+
       const querySnapshot = await getDocs(
         query(
           collection(db, COLLECTIONS.ORDERS),
@@ -789,7 +789,7 @@ export const deliveryService = {
       // Update delivery personnel document if it exists
       const deliveryPersonnelRef = doc(db, COLLECTIONS.DELIVERY_PERSONNEL, driverId);
       const deliveryDoc = await getDoc(deliveryPersonnelRef);
-      
+
       if (deliveryDoc.exists()) {
         await updateDoc(deliveryPersonnelRef, {
           ...data,
@@ -803,7 +803,7 @@ export const deliveryService = {
           updatedAt: serverTimestamp()
         });
       }
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error updating delivery personnel:', error);
@@ -828,8 +828,32 @@ export const adminService = {
   // Get all users
   getAllUsers: async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const [usersSnap, restaurantsSnap, driversSnap] = await Promise.all([
+        getDocs(collection(db, COLLECTIONS.USERS)),
+        getDocs(collection(db, COLLECTIONS.RESTAURANTS)),
+        getDocs(collection(db, COLLECTIONS.DELIVERY_PERSONNEL))
+      ]);
+
+      const restaurantsMap = {};
+      restaurantsSnap.forEach(doc => {
+        restaurantsMap[doc.id] = doc.data();
+      });
+
+      const driversMap = {};
+      driversSnap.forEach(doc => {
+        driversMap[doc.id] = doc.data();
+      });
+
+      return usersSnap.docs.map(doc => {
+        const userData = { id: doc.id, ...doc.data() };
+        if (userData.role === 'restaurant' && restaurantsMap[doc.id]) {
+          return { ...userData, ...restaurantsMap[doc.id], id: doc.id }; // Preserving original id
+        }
+        if (userData.role === 'delivery' && driversMap[doc.id]) {
+          return { ...userData, ...driversMap[doc.id], id: doc.id };
+        }
+        return userData;
+      });
     } catch (error) {
       console.error('Error getting all users:', error);
       return [];

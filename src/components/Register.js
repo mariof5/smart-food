@@ -104,27 +104,59 @@ const Register = () => {
             let result;
 
             if (userType === USER_ROLES.RESTAURANT) {
-                // Determine signup fee status based on payment method
-                const signupFeeStatus = formData.paymentMethod === 'chapa' ? 'paid' : 'pending';
-                
-                result = await registerRestaurant(formData.email, formData.password, {
-                    ownerName: formData.name,
-                    name: formData.restaurantName,
-                    description: formData.description,
-                    cuisine: formData.cuisine,
-                    address: formData.address,
-                    phone: formData.phone,
-                    signupFeeStatus,
-                    paymentMethod: formData.paymentMethod
-                });
+                if (formData.paymentMethod === 'chapa') {
+                    // Pre-payment flow: Save data and initialize payment
+                    try {
+                        const currentUrl = window.location.origin;
+                        const returnUrl = `${currentUrl}/restaurant-payment-result`;
 
-                if (result.success) {
-                    if (formData.paymentMethod === 'cash') {
-                        toast.success('Registration submitted! Your account is pending approval after payment verification.');
-                    } else {
-                        toast.success('Registration successful! Please login.');
+                        const paymentData = {
+                            email: formData.email,
+                            ownerName: formData.name,
+                            phone: formData.phone,
+                            restaurantName: formData.restaurantName,
+                            return_url: returnUrl
+                        };
+
+                        // Store registration data for later
+                        localStorage.setItem('pendingRestaurantSignup', JSON.stringify(formData));
+
+                        // Import payment service dynamically
+                        const { paymentService } = await import('../services/paymentService');
+                        const paymentResult = await paymentService.initializeRestaurantSignup(paymentData);
+
+                        if (paymentResult.status === 'success') {
+                            toast.success('Redirecting to payment gateway...');
+                            window.location.href = paymentResult.checkout_url;
+                            return; // Stop here, wait for redirect back
+                        } else {
+                            throw new Error('Failed to initialize payment');
+                        }
+                    } catch (paymentError) {
+                        console.error('Payment initialization error:', paymentError);
+                        toast.error('Failed to initialize payment. Please try again or use cash payment.');
+                        setLoading(false);
+                        return;
                     }
-                    navigate('/login');
+                } else {
+                    // Cash payment - old flow (register immediately as pending)
+                    const result = await registerRestaurant(formData.email, formData.password, {
+                        ownerName: formData.name,
+                        name: formData.restaurantName,
+                        description: formData.description,
+                        cuisine: formData.cuisine,
+                        address: formData.address,
+                        phone: formData.phone,
+                        signupFeeStatus: 'pending',
+                        paymentMethod: formData.paymentMethod
+                    });
+
+                    if (result.success) {
+                        toast.success('Registration submitted! Your account is pending approval after payment verification.');
+                        navigate('/login');
+                    } else {
+                        toast.error(result.error || 'Registration failed');
+                    }
                 }
             } else if (userType === USER_ROLES.DELIVERY) {
                 result = await registerDelivery(formData.email, formData.password, {
@@ -387,7 +419,7 @@ const Register = () => {
 
                                                     <div className="mb-3">
                                                         <label className="form-label fw-bold">Select Payment Method</label>
-                                                        
+
                                                         <div className="form-check mb-2 p-3 border rounded">
                                                             <input
                                                                 className="form-check-input"

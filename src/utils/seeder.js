@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, setDoc, doc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 import { restaurantsData, restaurantMenus } from '../data/restaurants';
 
 export const seedDatabase = async () => {
@@ -46,6 +46,17 @@ export const seedDatabase = async () => {
 
             const docRef = await addDoc(restaurantsRef, newRestaurant);
             console.log(`Added restaurant ${restaurant.name} with ID: ${docRef.id}`);
+
+            // Add corresponding user record so it shows in Admin Dashboard
+            const usersRef = collection(db, 'users');
+            await setDoc(doc(db, 'users', docRef.id), {
+                name: restaurant.name,
+                email: `${restaurant.name.toLowerCase().replace(/\s+/g, '')}@example.com`,
+                role: 'restaurant',
+                isActive: true,
+                isDeleted: false,
+                createdAt: serverTimestamp()
+            });
 
             // Add menu items
             const menus = restaurantMenus[restaurant.name];

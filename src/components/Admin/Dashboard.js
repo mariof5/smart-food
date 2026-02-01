@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { disputeService, refundService, adminService } from '../../services/databaseService';
-import { demoService } from '../../services/demoService';
+import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { toast } from 'react-toastify';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import ThemeToggle from '../UI/ThemeToggle';
@@ -27,6 +28,16 @@ const Dashboard = () => {
         activeRestaurants: 0,
         popularItems: [],
         usersByRole: { customers: 0, restaurants: 0, delivery: 0, admin: 0 }
+    });
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [newUser, setNewUser] = useState({
+        name: '',
+        email: '',
+        role: 'customer',
+        password: 'password123',
+        cuisine: '',
+        vehicleType: 'motorcycle',
+        phone: ''
     });
 
     useEffect(() => {
@@ -60,19 +71,6 @@ const Dashboard = () => {
         }
     };
 
-    const handleGenerateDemoData = async () => {
-        if (!window.confirm('Create sample restaurant and menu items?')) return;
-
-        toast.info('Generating demo data...');
-        const result = await demoService.createDemoData(currentUser.uid);
-
-        if (result.success) {
-            toast.success(result.message);
-            loadAdminData(); // Refresh data
-        } else {
-            toast.error('Failed to generate data: ' + result.error);
-        }
-    };
 
     const handleToggleUserStatus = async (userId, currentStatus) => {
         const newStatus = !currentStatus;
@@ -123,20 +121,43 @@ const Dashboard = () => {
         }
     };
 
-    const handleSeedDatabase = async () => {
-        if (!window.confirm('Seed database with top restaurants and menus?')) return;
 
-        toast.info('Seeding database...');
-        const { seedDatabase } = require('../../utils/seeder');
-        const result = await seedDatabase();
+    const handleAddUser = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const result = await adminService.addUser(newUser);
+            if (result.success) {
+                // If it's a restaurant or delivery, we should also create a record in their respective collection if we want full functionality
+                if (newUser.role === 'restaurant') {
+                    await setDoc(doc(db, 'restaurants', result.id), {
+                        name: newUser.name,
+                        cuisine: newUser.cuisine,
+                        isActive: true,
+                        createdAt: serverTimestamp()
+                    });
+                } else if (newUser.role === 'delivery') {
+                    await setDoc(doc(db, 'delivery_personnel', result.id), {
+                        name: newUser.name,
+                        vehicleType: newUser.vehicleType,
+                        createdAt: serverTimestamp()
+                    });
+                }
 
-        if (result.success) {
-            toast.success(result.message);
-            loadAdminData(); // Refresh data
-        } else {
-            toast.error('Failed to seed: ' + result.error);
+                toast.success('User added successfully (Wait for sync or refresh)');
+                setShowAddModal(false);
+                loadAdminData();
+            } else {
+                toast.error(result.error);
+            }
+        } catch (error) {
+            console.error('Add user error:', error);
+            toast.error('Failed to add user');
+        } finally {
+            setLoading(false);
         }
     };
+
 
     const handleLogout = async () => {
         await logout();
@@ -256,24 +277,6 @@ const Dashboard = () => {
                                     <span className="badge bg-warning ms-2">{stats.pendingRefunds}</span>
                                 )}
                             </button>
-                            <div className="mt-4 px-3">
-                                <hr />
-                                <p className="text-muted small mb-2">Dev Tools</p>
-                                <button
-                                    className="btn btn-outline-primary w-100 btn-sm"
-                                    onClick={handleGenerateDemoData}
-                                >
-                                    <i className="fas fa-database me-2"></i>
-                                    Generate Demo Data
-                                </button>
-                                <button
-                                    className="btn btn-outline-success w-100 btn-sm mt-2"
-                                    onClick={handleSeedDatabase}
-                                >
-                                    <i className="fas fa-seedling me-2"></i>
-                                    Seed Top Restaurants
-                                </button>
-                            </div>
                         </div>
                     </div>
 
@@ -445,6 +448,13 @@ const Dashboard = () => {
                                 <div className="d-flex justify-content-between align-items-center mb-4">
                                     <h2>Manage Users</h2>
                                     <div className="d-flex gap-2">
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={() => setShowAddModal(true)}
+                                        >
+                                            <i className="fas fa-plus me-2"></i>
+                                            Add User
+                                        </button>
                                         <input
                                             type="text"
                                             className="form-control"
@@ -475,6 +485,7 @@ const Dashboard = () => {
                                                 <thead>
                                                     <tr>
                                                         <th>Name</th>
+                                                        <th>Details</th>
                                                         <th>Email</th>
                                                         <th>Role</th>
                                                         <th>Status</th>
@@ -490,14 +501,36 @@ const Dashboard = () => {
                                                                     <div className="avatar-circle me-2">
                                                                         {user.name?.charAt(0).toUpperCase() || 'U'}
                                                                     </div>
-                                                                    <span className="fw-bold">{user.name || 'Unknown'}</span>
+                                                                    <div className="d-flex flex-column">
+                                                                        <span className="fw-bold">{user.name || 'Unknown'}</span>
+                                                                        {user.role === 'restaurant' && (
+                                                                            <small className="text-muted">
+                                                                                <i className="fas fa-store me-1"></i>
+                                                                                {user.name}
+                                                                            </small>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
+                                                            </td>
+                                                            <td>
+                                                                {user.role === 'restaurant' && (
+                                                                    <span className="small text-muted">{user.cuisine}</span>
+                                                                )}
+                                                                {user.role === 'delivery' && (
+                                                                    <span className="small text-muted">
+                                                                        <i className="fas fa-motorcycle me-1"></i>
+                                                                        {user.vehicleType}
+                                                                    </span>
+                                                                )}
+                                                                {user.role === 'customer' && (
+                                                                    <span className="small text-muted">{user.phone}</span>
+                                                                )}
                                                             </td>
                                                             <td>{user.email}</td>
                                                             <td>
                                                                 <span className={`badge bg-${user.role === 'admin' ? 'danger' :
-                                                                        user.role === 'restaurant' ? 'success' :
-                                                                            user.role === 'delivery' ? 'warning' : 'primary'
+                                                                    user.role === 'restaurant' ? 'success' :
+                                                                        user.role === 'delivery' ? 'warning' : 'primary'
                                                                     }`}>
                                                                     {user.role}
                                                                 </span>
@@ -607,9 +640,9 @@ const Dashboard = () => {
                                                             <td>{formatCurrency(order.total || 0)}</td>
                                                             <td>
                                                                 <span className={`badge bg-${order.status === 'delivered' ? 'success' :
-                                                                        order.status === 'cancelled' ? 'danger' :
-                                                                            order.status === 'preparing' ? 'warning' :
-                                                                                order.status === 'ready' ? 'info' : 'primary'
+                                                                    order.status === 'cancelled' ? 'danger' :
+                                                                        order.status === 'preparing' ? 'warning' :
+                                                                            order.status === 'ready' ? 'info' : 'primary'
                                                                     }`}>
                                                                     {order.status}
                                                                 </span>
@@ -770,6 +803,88 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+            {/* Add User Modal */}
+            {showAddModal && (
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Add New User</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowAddModal(false)}></button>
+                            </div>
+                            <form onSubmit={handleAddUser}>
+                                <div className="modal-body">
+                                    <div className="mb-3">
+                                        <label className="form-label">Full Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={newUser.name}
+                                            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="mb-3">
+                                        <label className="form-label">Email</label>
+                                        <input
+                                            type="email"
+                                            className="form-control"
+                                            value={newUser.email}
+                                            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="mb-3">
+                                        <label className="form-label">Role</label>
+                                        <select
+                                            className="form-select"
+                                            value={newUser.role}
+                                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                                        >
+                                            <option value="customer">Customer</option>
+                                            <option value="restaurant">Restaurant</option>
+                                            <option value="delivery">Delivery</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                    </div>
+                                    {newUser.role === 'restaurant' && (
+                                        <div className="mb-3">
+                                            <label className="form-label">Cuisine</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="e.g. Ethiopian, Italian"
+                                                value={newUser.cuisine}
+                                                onChange={(e) => setNewUser({ ...newUser, cuisine: e.target.value })}
+                                            />
+                                        </div>
+                                    )}
+                                    {newUser.role === 'delivery' && (
+                                        <div className="mb-3">
+                                            <label className="form-label">Vehicle Type</label>
+                                            <select
+                                                className="form-select"
+                                                value={newUser.vehicleType}
+                                                onChange={(e) => setNewUser({ ...newUser, vehicleType: e.target.value })}
+                                            >
+                                                <option value="motorcycle">Motorcycle</option>
+                                                <option value="bicycle">Bicycle</option>
+                                                <option value="car">Car</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                                        {loading ? 'Adding...' : 'Add User'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

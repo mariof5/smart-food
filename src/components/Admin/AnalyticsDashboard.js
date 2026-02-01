@@ -128,13 +128,13 @@ const AnalyticsDashboard = () => {
     // Popular categories
     const categoryCount = {};
     const itemCount = {};
-    
+
     orders.forEach(order => {
       order.items?.forEach(item => {
         // Count categories
         const category = item.category || 'other';
         categoryCount[category] = (categoryCount[category] || 0) + item.quantity;
-        
+
         // Count individual items
         const itemKey = `${item.name} (${order.restaurantName || 'Unknown'})`;
         itemCount[itemKey] = (itemCount[itemKey] || 0) + item.quantity;
@@ -206,13 +206,29 @@ const AnalyticsDashboard = () => {
     const totalCustomers = Object.keys(customerOrders).length;
     const customerRetentionRate = totalCustomers > 0 ? (returningCustomers / totalCustomers) * 100 : 0;
 
+    // Restaurant growth (new vs total)
+    const newRestaurantsCount = restaurants.filter(r => {
+      const created = r.createdAt?.toDate?.() || new Date(r.createdAt);
+      return created >= startDate;
+    }).length;
+    const restaurantGrowthRate = restaurants.length > 0 ? (newRestaurantsCount / restaurants.length) * 100 : 0;
+
+    // Average Delivery Time
+    const deliveredOrdersList = orders.filter(o => o.status === 'delivered' && o.deliveredAt && o.createdAt);
+    const totalDeliveryTime = deliveredOrdersList.reduce((sum, o) => {
+      const created = o.createdAt?.toDate?.() || new Date(o.createdAt);
+      const delivered = o.deliveredAt?.toDate?.() || new Date(o.deliveredAt);
+      return sum + (delivered - created) / (1000 * 60); // minutes
+    }, 0);
+    const averageDeliveryTime = deliveredOrdersList.length > 0 ? totalDeliveryTime / deliveredOrdersList.length : 0;
+
     return {
       overview: {
         totalRevenue,
         totalOrders,
         averageOrderValue,
         customerRetentionRate,
-        restaurantGrowthRate: 15.5, // Placeholder
+        restaurantGrowthRate,
         deliverySuccessRate
       },
       trends: {
@@ -236,7 +252,7 @@ const AnalyticsDashboard = () => {
         geographicDistribution: []
       },
       delivery: {
-        averageDeliveryTime: 32, // Placeholder
+        averageDeliveryTime,
         deliverySuccessRate,
         topDeliveryPersonnel: [],
         deliveryHeatmap: []

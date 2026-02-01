@@ -169,6 +169,23 @@ export const registerRestaurant = async (email, password, restaurantData) => {
   }
 };
 
+// Activate restaurant after successful payment
+export const activateRestaurant = async (uid, activationData) => {
+  try {
+    const restaurantRef = doc(db, 'restaurants', uid);
+    await updateDoc(restaurantRef, {
+      ...activationData,
+      updatedAt: new Date().toISOString()
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Restaurant activation error:', error);
+    return { success: false, error: getFriendlyErrorMessage(error) };
+  }
+};
+
+
 // Register delivery personnel
 export const registerDelivery = async (email, password, deliveryData) => {
   try {
