@@ -140,7 +140,7 @@ const Register = () => {
                     }
                 } else {
                     // Cash payment - old flow (register immediately as pending)
-                    const result = await registerRestaurant(formData.email, formData.password, {
+                    const cashResult = await registerRestaurant(formData.email, formData.password, {
                         ownerName: formData.name,
                         name: formData.restaurantName,
                         description: formData.description,
@@ -151,11 +151,11 @@ const Register = () => {
                         paymentMethod: formData.paymentMethod
                     });
 
-                    if (result.success) {
+                    if (cashResult.success) {
                         toast.success('Registration submitted! Your account is pending approval after payment verification.');
                         navigate('/login');
                     } else {
-                        toast.error(result.error || 'Registration failed');
+                        toast.error(cashResult.error || 'Registration failed');
                     }
                 }
             } else if (userType === USER_ROLES.DELIVERY) {
@@ -608,12 +608,16 @@ const Register = () => {
                                         {loading ? (
                                             <>
                                                 <i className="fas fa-spinner fa-spin me-2"></i>
-                                                Creating Account...
+                                                {userType === USER_ROLES.RESTAURANT && formData.paymentMethod === 'chapa'
+                                                    ? 'Redirecting to Payment...'
+                                                    : 'Creating Account...'}
                                             </>
                                         ) : (
                                             <>
-                                                <i className="fas fa-user-plus me-2"></i>
-                                                Create Account
+                                                <i className={`fas fa-${userType === USER_ROLES.RESTAURANT && formData.paymentMethod === 'chapa' ? 'credit-card' : 'user-plus'} me-2`}></i>
+                                                {userType === USER_ROLES.RESTAURANT && formData.paymentMethod === 'chapa'
+                                                    ? 'Proceed to Payment'
+                                                    : 'Create Account'}
                                             </>
                                         )}
                                     </button>

@@ -14,6 +14,16 @@ const RestaurantPaymentResult = () => {
 
     useEffect(() => {
         const verify = async () => {
+            // Log all URL parameters for debugging
+            console.log('=== Payment Callback URL Parameters ===');
+            const allParams = {};
+            for (let [key, value] of searchParams.entries()) {
+                allParams[key] = value;
+            }
+            console.log(JSON.stringify(allParams, null, 2));
+            console.log('Current URL:', window.location.href);
+            console.log('=======================================');
+
             const tx_ref = searchParams.get('tx_ref') || searchParams.get('trx_ref');
             const restaurantIdFromUrl = searchParams.get('restaurantId');
 
@@ -62,17 +72,19 @@ const RestaurantPaymentResult = () => {
                                 setStatus('success');
                                 setMessage('Payment successful! Your restaurant account has been created and activated.');
                                 setPaymentDetails(result.data);
-                                toast.success('Account created and activated successfully!');
+                                toast.success('Your account has been created successfully!');
 
-                                // Clear all pending data
+                                // Clear all pending data only on success
                                 localStorage.removeItem('pendingRestaurantSignup');
                             } else {
-                                throw new Error(regResult.error || 'Failed to create account after payment');
+                                console.error('Account creation failed:', regResult.error);
+                                setStatus('error');
+                                setMessage(`Payment was verified, but we couldn't create your account: ${regResult.error}. Please contact support with Ref: ${tx_ref}`);
                             }
                         } catch (regError) {
-                            console.error('Registration error after payment:', regError);
+                            console.error('Registration runtime error:', regError);
                             setStatus('error');
-                            setMessage(`Payment was successful, but we encountered an error creating your account: ${regError.message}. Please contact support with your transaction reference: ${tx_ref}`);
+                            setMessage(`Payment was successful, but we encountered an error: ${regError.message}. Ref: ${tx_ref}`);
                             return;
                         }
                     } else if (existingRestaurantId) {
